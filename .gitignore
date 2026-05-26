@@ -40,3 +40,7 @@ Desktop.ini
 *.tmp
 *.bak
 *.swp
+
+# Package outputs
+**/jpackage-output/
+

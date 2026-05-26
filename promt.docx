@@ -1,1 +1,7 @@
-﻿
+﻿những table tôi muốn xóa dữ liệu và đưa giá trị auto_increament về lại 1 (nếu có):
+san_pham,
+nhap_hang,chi_tiet_nhap_hang,
+ban_hang,chi_tiet_ban_hang,
+doi_tac,nhan_vien,
+nhat_ky,
+thu_chi,

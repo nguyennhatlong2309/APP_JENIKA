@@ -43,6 +43,7 @@ public class PurchaseOrderDialog extends JDialog {
     private final boolean isReadOnly;
     private boolean saved = false;
     private Runnable onSaveCallback;
+    private int nextId = 1;
 
     // ───────────────────────── Header fields ─────────────────────
     private JTextField tfId; // Số HĐ / ID
@@ -233,6 +234,8 @@ public class PurchaseOrderDialog extends JDialog {
             tfId.setText(String.valueOf(editId));
             tfId.setEditable(false);
             tfId.setEnabled(false);
+        } else {
+            tfId.setText(String.valueOf(nextId));
         }
 
         cbNCC = createComboBox(nccMap.keySet().toArray(new String[0]), "-- Chọn nhà cung cấp --");
@@ -688,6 +691,14 @@ public class PurchaseOrderDialog extends JDialog {
     private void loadLookups() {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
+            if (!isEditMode) {
+                try (Statement st = conn.createStatement();
+                     ResultSet rs = st.executeQuery("SELECT COALESCE(MAX(id), 0) + 1 FROM nhap_hang")) {
+                    if (rs.next()) {
+                        nextId = rs.getInt(1);
+                    }
+                }
+            }
             // Đối tác (nhà cung cấp)
             try (Statement st = conn.createStatement();
                     ResultSet rs = st.executeQuery(

@@ -43,6 +43,7 @@ public class SalesOrderDialog extends JDialog {
     private final boolean isReadOnly;
     private boolean saved = false;
     private Runnable onSaveCallback;
+    private int nextId = 1;
 
     // ───────────────────────── General info fields ─────────────────────
     private JComboBox<String> cbKhachHang; // Khách hàng
@@ -390,6 +391,8 @@ public class SalesOrderDialog extends JDialog {
             tfId.setText(String.valueOf(editId));
             tfId.setEditable(false);
             tfId.setEnabled(false);
+        } else {
+            tfId.setText(String.valueOf(nextId));
         }
 
         cbKhachHang = createComboBox(khachMap.keySet().toArray(new String[0]), "-- Chọn khách hàng --");
@@ -852,6 +855,14 @@ public class SalesOrderDialog extends JDialog {
     private void loadLookups() {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
+            if (!isEditMode) {
+                try (Statement st = conn.createStatement();
+                     ResultSet rs = st.executeQuery("SELECT COALESCE(MAX(id), 0) + 1 FROM ban_hang")) {
+                    if (rs.next()) {
+                        nextId = rs.getInt(1);
+                    }
+                }
+            }
             // Đối tác (khách hàng)
             try (Statement st = conn.createStatement();
                     ResultSet rs = st
