@@ -7,7 +7,9 @@ import com.formdev.flatlaf.FlatLaf;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 import java.io.PrintStream;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.HashMap;
@@ -47,9 +49,12 @@ public class Main {
         UIManager.put("TextField.font", AppTheme.FONT_BODY_MD);
         UIManager.put("ComboBox.font", AppTheme.FONT_BODY_MD);
 
-        // === 2. Kết nối DB tự động (Docker MySQL) ===
-        // Cấu hình khớp với docker-compose.yml
-        DatabaseManager.configure("localhost", 3306, "cfe_di_rom", "root", "root");
+        // === 2. Kết nối DB ===
+        // Nếu chạy dưới dạng installed package (có file installed.marker) → dùng MySQL portable port 3316
+        // Nếu chạy dev → dùng Docker MySQL port 3306
+        int dbPort = detectDbPort();
+        String dbPass = isInstalledPackage() ? "" : "root";
+        DatabaseManager.configure("localhost", dbPort, "cfe_di_rom", "root", dbPass);
 
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
@@ -99,10 +104,10 @@ public class Main {
                     }
                 }
 
-                // Thêm bản ghi mặc định nếu chưa có
+                // Thêm bản ghi mặc định nếu chưa có (Dùng INSERT IGNORE cho an toàn)
                 try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM `store_config` WHERE `id` = 1")) {
                     if (rs.next() && rs.getInt(1) == 0) {
-                        stmt.executeUpdate("INSERT INTO `store_config` (`id`, `shop_name`, `shop_name_pnh`, `shop_addr`, `shop_tel`, `shop_bank`, `shop_notes`, `shop_policy`, `shop_warranty`, `shop_warranty_limit`)"
+                        stmt.executeUpdate("INSERT IGNORE INTO `store_config` (`id`, `shop_name`, `shop_name_pnh`, `shop_addr`, `shop_tel`, `shop_bank`, `shop_notes`, `shop_policy`, `shop_warranty`, `shop_warranty_limit`)"
                                 + " VALUES (1, 'JENKA COFFEE SHOP', 'Jenka Coffee Shop',"
                                 + " 'Địa chỉ: Số 12 Trần Thị Do - Khu phố 24 - Phường Tân Thới Hiệp - TP HCM',"
                                 + " 'Điện thoại: 0817909090 - 0827909090',"
@@ -122,14 +127,19 @@ public class Main {
                 stmt.executeUpdate("UPDATE `store_config` SET `shop_warranty_limit` = '- Bảo hành 3-6 tháng với máy cũ và 12 tháng với máy mới.' WHERE `id` = 1 AND `shop_warranty_limit` IS NULL");
             } catch (SQLException ex) {
                 System.err.println("⚠️ Lỗi kiểm tra/thêm bảng store_config: " + ex.getMessage());
+                ex.printStackTrace();
             }
         } catch (Exception e) {
             System.err.println("⚠️ Không thể kết nối database: " + e.getMessage());
+            e.printStackTrace();
+            boolean isInstalled = isInstalledPackage();
+            String errorDetail = isInstalled
+                ? "Cơ sở dữ liệu khởi động chưa xong.<br>Vui lòng thử tắt và mở lại ứng dụng."
+                : "Hãy đảm bảo Docker container đang chạy:<br><code>docker-compose up -d</code>";
             int choice = JOptionPane.showOptionDialog(
                     null,
-                    "<html><b>Không thể kết nối database.</b><br>" +
-                            "Hãy đảm bảo Docker container đang chạy:<br>" +
-                            "<code>docker-compose up -d</code><br><br>" +
+                    "<html><b>Không thể kết nối cơ sở dữ liệu.</b><br>" +
+                            errorDetail + "<br><br>" +
                             "Bạn có muốn chạy app ở chế độ demo không?</html>",
                     "Lỗi kết nối",
                     JOptionPane.YES_NO_OPTION,
@@ -146,6 +156,34 @@ public class Main {
         // === 3. Mở AppFrame chính ===
         AppFrame frame = new AppFrame();
         frame.setVisible(true);
+    }
+
+    /**
+     * Phát hiện xem app đang chạy dưới dạng installed package hay dev mode.
+     * Installed package có file 'installed.marker' cùng thư mục với JAR.
+     */
+    private static boolean isInstalledPackage() {
+        try {
+            File jarDir = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParentFile();
+            return new File(jarDir, "installed.marker").exists();
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Trả về port MySQL phù hợp:
+     * - 3316 nếu chạy dưới dạng installed package (MySQL portable)
+     * - 3306 nếu chạy dev mode (Docker)
+     */
+    private static int detectDbPort() {
+        if (isInstalledPackage()) {
+            System.out.println("🔧 Installed mode: dùng MySQL portable port 3316");
+            return 3316;
+        } else {
+            System.out.println("🔧 Dev mode: dùng Docker MySQL port 3306");
+            return 3306;
+        }
     }
 
     private static void applyCustomColors() {
