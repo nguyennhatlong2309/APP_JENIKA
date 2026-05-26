@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cfe_di_rom_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cfe_di_rom
+      MYSQL_USER: cafe_user
+      MYSQL_PASSWORD: cafe_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      # Lưu data lâu dài (không mất khi restart container)
+      - mysql_data:/var/lib/mysql
+      # Tự động chạy script init khi container khởi động lần đầu
+      - ./swing-app/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql_data:
+    driver: local
