@@ -40,7 +40,92 @@ function ExpensesContent() {
   const [notes, setNotes] = useState('');
 
   // Data states
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(INITIAL_EXPENSES);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const [categories, setCategories] = useState<{ id: number; ten: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  interface ThuChiDbItem {
+    id: number;
+    thoiGian: string;
+    idLoai: number | null;
+    tenLoai: string | null;
+    tienThu: number | null;
+    tienChi: number | null;
+    moTa: string | null;
+    phuongThuc: string | null;
+    trangThai: string | null;
+  }
+
+  const mapDbItemToExpense = (item: ThuChiDbItem): ExpenseItem => {
+    const isIncome = item.tienThu && item.tienThu > 0;
+    const amount = isIncome ? item.tienThu! : (item.tienChi || 0);
+    
+    let methodIcon = 'payments';
+    const method = item.phuongThuc || 'Tiền mặt';
+    if (method.includes('tín dụng') || method.includes('Thẻ')) methodIcon = 'credit_card';
+    if (method.includes('khoản') || method.includes('Chuyển')) methodIcon = 'account_balance';
+    if (method.includes('điện tử') || method.includes('Ví')) methodIcon = 'payments';
+
+    let categoryName: 'Mặt bằng' | 'Quảng cáo' | 'Điện nước' | 'Lương nhân viên' | 'Phần mềm' = 'Mặt bằng';
+    const dbCategory = item.tenLoai || '';
+    const dbCategoryLower = dbCategory.toLowerCase();
+    if (dbCategoryLower.includes('mặt bằng')) categoryName = 'Mặt bằng';
+    else if (dbCategoryLower.includes('marketing') || dbCategoryLower.includes('quảng cáo')) categoryName = 'Quảng cáo';
+    else if (dbCategoryLower.includes('điện') || dbCategoryLower.includes('nước')) categoryName = 'Điện nước';
+    else if (dbCategoryLower.includes('lương') || dbCategoryLower.includes('nhân viên')) categoryName = 'Lương nhân viên';
+    else if (dbCategoryLower.includes('phần mềm') || dbCategoryLower.includes('kỹ thuật') || dbCategoryLower.includes('setup')) categoryName = 'Phần mềm';
+
+    let formattedDate = '';
+    try {
+      const dateObj = new Date(item.thoiGian);
+      formattedDate = dateObj.toLocaleDateString('vi-VN');
+    } catch (e) {
+      formattedDate = item.thoiGian;
+    }
+
+    return {
+      id: `#TC-${item.id}`,
+      name: item.moTa || (isIncome ? 'Thu nhập khác' : 'Chi phí phát sinh'),
+      category: categoryName,
+      date: formattedDate,
+      amount,
+      method,
+      methodIcon,
+      status: item.trangThai === 'Đang xử lý' ? 'Đang xử lý' : 'Đã chi',
+    };
+  };
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:8080/api/v1/thu-chi");
+      if (res.ok) {
+        const data: ThuChiDbItem[] = await res.json();
+        setExpenses(data.map(mapDbItemToExpense));
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải nhật ký thu chi:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/v1/metadata/loai-thu-chi");
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải phân loại chi phí:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+    fetchCategories();
+  }, []);
 
   // Open modal if query is log=true
   useEffect(() => {
@@ -65,39 +150,57 @@ function ExpensesContent() {
     router.replace('/expenses');
   };
 
-  const handleCreateExpense = (e: React.FormEvent) => {
+  const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || amount <= 0) return;
 
-    let icon = 'payments';
-    if (paymentMethod.includes('tín dụng') || paymentMethod.includes('Thẻ')) icon = 'credit_card';
-    if (paymentMethod.includes('khoản') || paymentMethod.includes('Chuyển')) icon = 'account_balance';
-
-    const formattedDate = date
-      ? new Date(date).toLocaleDateString('vi-VN')
-      : new Date().toLocaleDateString('vi-VN');
-
-    const newExpense: ExpenseItem = {
-      id: `#CP-${Math.floor(8403 + Math.random() * 1000)}`,
-      name: title,
-      category,
-      date: formattedDate,
-      amount,
-      method: paymentMethod,
-      methodIcon: icon,
-      status: 'Đã chi',
+    let categoryId: number | null = null;
+    const findIdByName = (keywords: string[]) => {
+      const found = categories.find(c => keywords.some(k => c.ten.toLowerCase().includes(k)));
+      return found ? found.id : null;
     };
 
-    setExpenses((prev) => [newExpense, ...prev]);
+    if (category === 'Mặt bằng') categoryId = findIdByName(['mặt bằng', 'thuê']) || 6;
+    else if (category === 'Quảng cáo') categoryId = findIdByName(['marketing', 'quảng cáo', 'chi phí marketing']) || 8;
+    else if (category === 'Điện nước') categoryId = findIdByName(['điện', 'nước', 'tiện ích']) || 7;
+    else if (category === 'Lương nhân viên') categoryId = findIdByName(['lương', 'nhân viên', 'trả lương']) || 5;
+    else if (category === 'Phần mềm') categoryId = findIdByName(['phần mềm', 'kỹ thuật', 'setup']) || 10;
 
-    // Reset
-    setTitle('');
-    setCategory('Mặt bằng');
-    setDate('');
-    setAmount(0);
-    setPaymentMethod('Tiền mặt');
-    setNotes('');
-    closeModal();
+    const body = {
+      tienChi: amount,
+      tienThu: 0,
+      moTa: title + (notes.trim() ? ` (${notes})` : ''),
+      idLoai: categoryId,
+      phuongThuc: paymentMethod,
+      trangThai: 'Đã chi',
+      thoiGian: date ? new Date(date).toISOString() : new Date().toISOString()
+    };
+
+    try {
+      const res = await fetch("http://localhost:8080/api/v1/thu-chi", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+      
+      if (res.ok) {
+        fetchExpenses();
+        setTitle('');
+        setCategory('Mặt bằng');
+        setDate('');
+        setAmount(0);
+        setPaymentMethod('Tiền mặt');
+        setNotes('');
+        closeModal();
+      } else {
+        alert("Có lỗi xảy ra khi ghi nhận chi phí!");
+      }
+    } catch (err) {
+      console.error("Lỗi khi gửi yêu cầu:", err);
+      alert("Không thể kết nối tới máy chủ Backend!");
+    }
   };
 
   // Calculations
@@ -121,6 +224,10 @@ function ExpensesContent() {
       expense.category.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
+
+  if (loading) {
+    return <div className="p-8 text-center text-white text-sm">Đang tải dữ liệu chi phí thực tế từ máy chủ...</div>;
+  }
 
   return (
     <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full relative">
