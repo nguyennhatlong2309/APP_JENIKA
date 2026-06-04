@@ -5,6 +5,7 @@ import com.brewmaster.theme.AppTheme;
 import com.brewmaster.util.ActivityLogger;
 import com.brewmaster.components.SearchableComboBox;
 import com.brewmaster.components.SearchableCellEditor;
+import com.brewmaster.components.DatePicker;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -76,6 +77,8 @@ public class PurchaseOrderDialog extends JDialog {
 
     private final NumberFormat vnd = NumberFormat.getNumberInstance(new Locale("vi", "VN"));
     private String lastSelectedNCC = null;
+    private String lastSelectedNV = null;
+    private boolean isUpdatingTable = false;
 
     // ═════════════════════════ Constructors ══════════════════════
 
@@ -373,9 +376,79 @@ public class PurchaseOrderDialog extends JDialog {
         });
 
         cbNV = createComboBox(nvMap.keySet().toArray(new String[0]), "-- Chọn nhân viên --");
+        cbNV.addItem("+ Nhân viên mới");
+        cbNV.addActionListener(e -> {
+            String sel = (String) cbNV.getSelectedItem();
+            if ("+ Nhân viên mới".equals(sel)) {
+                StaffDialog dialog = new StaffDialog((Frame) SwingUtilities.getWindowAncestor(this));
+                dialog.setVisible(true);
+                if (dialog.isSaved()) {
+                    Integer newId = dialog.getGeneratedId();
+                    if (newId != null) {
+                        try {
+                            Connection conn = DatabaseManager.getInstance().getConnection();
+                            try (PreparedStatement ps = conn.prepareStatement("SELECT ten_nhan_vien FROM nhan_vien WHERE id = ?")) {
+                                ps.setInt(1, newId);
+                                try (ResultSet rs = ps.executeQuery()) {
+                                    if (rs.next()) {
+                                        String ten = rs.getString("ten_nhan_vien");
+                                        nvMap.put(ten, newId);
+                                        
+                                        ActionListener[] listeners = cbNV.getActionListeners();
+                                        for (ActionListener l : listeners) {
+                                            cbNV.removeActionListener(l);
+                                        }
+                                        
+                                        cbNV.removeAllItems();
+                                        cbNV.addItem("-- Chọn nhân viên --");
+                                        for (String n : nvMap.keySet()) {
+                                            cbNV.addItem(n);
+                                        }
+                                        cbNV.addItem("+ Nhân viên mới");
+                                        
+                                        cbNV.setSelectedItem(ten);
+                                        lastSelectedNV = ten;
+                                        
+                                        for (ActionListener l : listeners) {
+                                            cbNV.addActionListener(l);
+                                        }
+                                        return;
+                                    }
+                                }
+                            }
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                }
+                
+                // Revert
+                ActionListener[] listeners = cbNV.getActionListeners();
+                for (ActionListener l : listeners) {
+                    cbNV.removeActionListener(l);
+                }
+                if (lastSelectedNV != null) {
+                    cbNV.setSelectedItem(lastSelectedNV);
+                } else {
+                    cbNV.setSelectedIndex(0);
+                }
+                for (ActionListener l : listeners) {
+                    cbNV.addActionListener(l);
+                }
+            } else {
+                if (sel != null && !sel.startsWith("--")) {
+                    lastSelectedNV = sel;
+                } else {
+                    if (sel == null || sel.startsWith("--")) {
+                        lastSelectedNV = null;
+                    }
+                }
+            }
+        });
 
         tfDate = createTextField();
         tfDate.setText(new SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date()));
+        DatePicker.setupDatePicker(tfDate, true);
 
         cbTrangThai = createComboBox(new String[] { "Chờ Nhận", "Đã nhận", "Đã hủy" }, "-- Chọn trạng thái --");
         if (cbTrangThai.getItemCount() > 1) {
@@ -400,9 +473,22 @@ public class PurchaseOrderDialog extends JDialog {
                 updatePaymentStats();
             }
         });
+        tfTienDaThanhToan.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                formatTextFieldMarkup(tfTienDaThanhToan, vnd);
+            }
+        });
+        tfTienDaThanhToan.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                formatTextFieldMarkup(tfTienDaThanhToan, vnd);
+            }
+        });
 
         tfNgayNhan = createTextField();
         tfNgayNhan.putClientProperty("JTextField.placeholderText", "dd/MM/yyyy");
+        DatePicker.setupDatePicker(tfNgayNhan, false);
 
         // Add fields to grid in the requested order:
         // Row 1
@@ -518,20 +604,20 @@ public class PurchaseOrderDialog extends JDialog {
                 boolean ok = super.stopCellEditing();
                 // Tự điền đơn giá nhập & đơn vị từ DB/Map
                 if (ok && sel != null) {
-                    Integer spId = spMap.get(sel);
-                    if (spId != null) {
-                        if (row >= 0) {
-                            long gia = fetchGiaNhap(spId);
-                            // Ghi giá nhập vào cột 3, đơn vị vào cột 1
-                            productTableModel.setValueAt(spUnitMap.get(sel), row, 1);
-                            productTableModel.setValueAt(vnd.format(gia), row, 3);
-                            updateThanhTien(row);
-                        }
+                    if (row >= 0) {
+                        long gia = fetchLatestGiaNhap(sel);
+                        // Ghi giá nhập vào cột 3, đơn vị vào cột 1
+                        productTableModel.setValueAt(spUnitMap.get(sel), row, 1);
+                        productTableModel.setValueAt(vnd.format(gia), row, 3);
+                        updateThanhTien(row);
                     }
                 }
                 return ok;
             }
         });
+
+        // ── Column 3: Custom Combobox cho đơn giá nhập ──
+        productTable.getColumnModel().getColumn(3).setCellEditor(new ImportPriceCellEditor(productTable));
 
         // ── Column 5: Nút xóa dòng ──
         productTable.getColumnModel().getColumn(5).setCellRenderer(new DeleteBtnRenderer());
@@ -716,14 +802,15 @@ public class PurchaseOrderDialog extends JDialog {
                     nvMap.put(rs.getString("ten_nhan_vien"), rs.getInt("id"));
             }
             // Sản phẩm
-            String spSql = "SELECT sp.id, sp.ten_san_pham, dv.ten_don_vi FROM san_pham sp "
+            String spSql = "SELECT sp.ten_san_pham, MAX(dv.ten_don_vi) AS ten_don_vi FROM san_pham sp "
                          + "LEFT JOIN don_vi_tinh dv ON sp.id_don_vi = dv.id "
+                         + "GROUP BY sp.ten_san_pham "
                          + "ORDER BY sp.ten_san_pham";
             try (Statement st = conn.createStatement();
                     ResultSet rs = st.executeQuery(spSql)) {
                 while (rs.next()) {
                     String tenSp = rs.getString("ten_san_pham");
-                    spMap.put(tenSp, rs.getInt("id"));
+                    spMap.put(tenSp, 0);
                     spUnitMap.put(tenSp, rs.getString("ten_don_vi") != null ? rs.getString("ten_don_vi") : "Cái");
                 }
             }
@@ -755,6 +842,7 @@ public class PurchaseOrderDialog extends JDialog {
                     // NV
                     String tenNV = rs.getString("ten_nhan_vien");
                     selectComboItem(cbNV, tenNV);
+                    lastSelectedNV = tenNV;
                     // Thời gian
                     Timestamp ts = rs.getTimestamp("thoi_gian");
                     if (ts != null)
@@ -767,7 +855,7 @@ public class PurchaseOrderDialog extends JDialog {
                     String trangThai = rs.getString("trang_thai");
                     selectComboItem(cbTrangThai, trangThai);
                     // Tiền đã thanh toán
-                    tfTienDaThanhToan.setText(String.valueOf(rs.getLong("da_thanh_toan")));
+                    tfTienDaThanhToan.setText(vnd.format(rs.getLong("da_thanh_toan")));
                     // Ghi chú
                     String ghiChu = rs.getString("ghi_chu");
                     tfGhiChu.setText(ghiChu != null ? ghiChu : "");
@@ -1076,12 +1164,10 @@ public class PurchaseOrderDialog extends JDialog {
                 try (PreparedStatement ps = conn.prepareStatement(insDet)) {
                     for (int r = 0; r < productTableModel.getRowCount(); r++) {
                         String tenSP = productTableModel.getValueAt(r, 0).toString();
-                        Integer spId = spMap.get(tenSP);
-                        if (spId == null)
-                            continue;
+                        long gia = parseLongVnd(productTableModel.getValueAt(r, 3));
+                        int spId = getOrCreateProductId(conn, tenSP, gia);
                         String donVi = productTableModel.getValueAt(r, 1) != null ? productTableModel.getValueAt(r, 1).toString() : "Cái";
                         int qty = parseIntSafe(productTableModel.getValueAt(r, 2));
-                        long gia = parseLongVnd(productTableModel.getValueAt(r, 3));
                         long thanh = qty * gia;
 
                         ps.setInt(1, orderId);
@@ -1255,12 +1341,19 @@ public class PurchaseOrderDialog extends JDialog {
     }
 
     private void updateThanhTien(int row) {
+        if (isUpdatingTable) return;
         if (row < 0 || row >= productTableModel.getRowCount())
             return;
-        int qty = parseIntSafe(productTableModel.getValueAt(row, 2));
-        long gia = parseLongVnd(productTableModel.getValueAt(row, 3));
-        long thanh = qty * gia;
-        productTableModel.setValueAt(vnd.format(thanh), row, 4);
+        isUpdatingTable = true;
+        try {
+            int qty = parseIntSafe(productTableModel.getValueAt(row, 2));
+            long gia = parseLongVnd(productTableModel.getValueAt(row, 3));
+            long thanh = qty * gia;
+            productTableModel.setValueAt(vnd.format(gia), row, 3);
+            productTableModel.setValueAt(vnd.format(thanh), row, 4);
+        } finally {
+            isUpdatingTable = false;
+        }
     }
 
     private void updatePaymentStats() {
@@ -1308,6 +1401,32 @@ public class PurchaseOrderDialog extends JDialog {
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
+        }
+    }
+
+    private void formatTextFieldMarkup(JTextField tf, NumberFormat format) {
+        String text = tf.getText();
+        if (text.isEmpty()) return;
+        int caretPos = tf.getCaretPosition();
+        int oldLen = text.length();
+        String cleanString = text.replaceAll("[^0-9]", "");
+        if (cleanString.isEmpty()) {
+            tf.setText("");
+            return;
+        }
+        try {
+            long parsed = Long.parseLong(cleanString);
+            String formatted = format.format(parsed);
+            if (!formatted.equals(text)) {
+                tf.setText(formatted);
+                int newLen = formatted.length();
+                int newCaretPos = caretPos + (newLen - oldLen);
+                if (newCaretPos < 0) newCaretPos = 0;
+                if (newCaretPos > newLen) newCaretPos = newLen;
+                tf.setCaretPosition(newCaretPos);
+            }
+        } catch (NumberFormatException ex) {
+            // Ignore
         }
     }
 
@@ -1545,6 +1664,157 @@ public class PurchaseOrderDialog extends JDialog {
         @Override
         public boolean getScrollableTracksViewportHeight() {
             return false;
+        }
+    }
+
+    private long fetchLatestGiaNhap(String spName) {
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            try (PreparedStatement ps = conn.prepareStatement("SELECT gia_nhap_hien_tai FROM san_pham WHERE ten_san_pham=? ORDER BY id DESC LIMIT 1")) {
+                ps.setString(1, spName);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next())
+                        return rs.getLong(1);
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return 0;
+    }
+
+    private int getOrCreateProductId(Connection conn, String tenSP, long giaNhap) throws SQLException {
+        String selectSql = "SELECT id FROM san_pham WHERE ten_san_pham = ? AND gia_nhap_hien_tai = ?";
+        try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+            ps.setString(1, tenSP);
+            ps.setLong(2, giaNhap);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    // Tự động khôi phục sản phẩm (set bi_xoa = 0) nếu đang bị ẩn
+                    try (PreparedStatement psRestore = conn.prepareStatement("UPDATE san_pham SET bi_xoa = 0 WHERE id = ?")) {
+                        psRestore.setInt(1, id);
+                        psRestore.executeUpdate();
+                    }
+                    return id;
+                }
+            }
+        }
+
+        int idDm = 1;
+        int idDv = 1;
+        Integer idNhom = null;
+        long giaBan = giaNhap;
+        int canhBaoTon = 5;
+
+        String templateSql = "SELECT id_danh_muc, id_don_vi, id_nhom, gia_ban_hien_tai, canh_bao_ton_kho FROM san_pham WHERE ten_san_pham = ? LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(templateSql)) {
+            ps.setString(1, tenSP);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    idDm = rs.getInt("id_danh_muc");
+                    idDv = rs.getInt("id_don_vi");
+                    if (rs.getObject("id_nhom") != null) {
+                        idNhom = rs.getInt("id_nhom");
+                    }
+                    giaBan = rs.getLong("gia_ban_hien_tai");
+                    canhBaoTon = rs.getInt("canh_bao_ton_kho");
+                }
+            }
+        }
+
+        String insertSql = "INSERT INTO san_pham (ten_san_pham, gia_nhap_hien_tai, gia_ban_hien_tai, so_luong_ton, canh_bao_ton_kho, id_danh_muc, id_don_vi, id_nhom) VALUES (?, ?, ?, 0, ?, ?, ?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, tenSP);
+            ps.setLong(2, giaNhap);
+            ps.setLong(3, giaBan);
+            ps.setInt(4, canhBaoTon);
+            ps.setInt(5, idDm);
+            ps.setInt(6, idDv);
+            if (idNhom != null) {
+                ps.setInt(7, idNhom);
+            } else {
+                ps.setNull(7, Types.INTEGER);
+            }
+            ps.executeUpdate();
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) {
+                    return keys.getInt(1);
+                }
+            }
+        }
+        throw new SQLException("Không thể tạo sản phẩm mới: " + tenSP);
+    }
+
+    private class ImportPriceCellEditor extends AbstractCellEditor implements TableCellEditor {
+        private final JComboBox<String> comboBox;
+        private final JTable table;
+
+        ImportPriceCellEditor(JTable table) {
+            this.table = table;
+            this.comboBox = new JComboBox<>();
+            this.comboBox.setEditable(true);
+            this.comboBox.setBackground(AppTheme.SURFACE_MED);
+            this.comboBox.setForeground(AppTheme.ON_SURFACE);
+            this.comboBox.setFont(AppTheme.FONT_BODY_MD);
+            this.comboBox.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+            JTextField tf = (JTextField) this.comboBox.getEditor().getEditorComponent();
+            tf.addActionListener(e -> stopCellEditing());
+            tf.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    formatTextFieldMarkup(tf, vnd);
+                }
+            });
+            tf.addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusLost(FocusEvent e) {
+                    formatTextFieldMarkup(tf, vnd);
+                }
+            });
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable t, Object v, boolean sel, int r, int c) {
+            Object spNameObj = t.getValueAt(r, 0);
+            String spName = spNameObj != null ? spNameObj.toString().trim() : "";
+
+            comboBox.removeAllItems();
+            if (!spName.isEmpty()) {
+                java.util.List<Double> prices = new java.util.ArrayList<>();
+                try {
+                    Connection conn = DatabaseManager.getInstance().getConnection();
+                    String sql = "SELECT DISTINCT gia_nhap_hien_tai FROM san_pham WHERE ten_san_pham = ? ORDER BY gia_nhap_hien_tai DESC";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, spName);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            while (rs.next()) {
+                                prices.add(rs.getDouble("gia_nhap_hien_tai"));
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+
+                for (Double price : prices) {
+                    comboBox.addItem(vnd.format(price.longValue()));
+                }
+            }
+
+            if (v != null) {
+                comboBox.setSelectedItem(v.toString());
+            } else {
+                comboBox.setSelectedItem("");
+            }
+
+            return comboBox;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            Object item = comboBox.getSelectedItem();
+            return item != null ? item.toString() : "";
         }
     }
 }

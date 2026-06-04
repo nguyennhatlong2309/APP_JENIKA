@@ -9,50 +9,50 @@ import java.awt.*;
 public class AppTheme {
 
     // === MÀU SẮC CHÍNH ===
-    public static final Color BACKGROUND       = hex("#131313");
-    public static final Color SURFACE          = hex("#131313");
-    public static final Color SURFACE_LOW      = hex("#1C1B1B"); // sidebar
-    public static final Color SURFACE_MED      = hex("#201F1F");
-    public static final Color SURFACE_HIGH     = hex("#2A2A2A"); // table header, cards
-    public static final Color SURFACE_HIGHEST  = hex("#353534"); // hover
-    public static final Color SURFACE_BRIGHT   = hex("#393939");
-    public static final Color SURFACE_VARIANT  = hex("#353534");
+    public static final Color BACKGROUND       = hex("#FAF8F6"); // Soft warm cream white
+    public static final Color SURFACE          = hex("#FAF8F6");
+    public static final Color SURFACE_LOW      = hex("#F3ECE6"); // Slightly darker warm cream for sidebar/panels
+    public static final Color SURFACE_MED      = hex("#EBE1D8"); // Table header, search fields, card background
+    public static final Color SURFACE_HIGH     = hex("#E2D5C9"); // For dialog headers, secondary buttons
+    public static final Color SURFACE_HIGHEST  = hex("#D9CAB9"); // For hover states, active selections
+    public static final Color SURFACE_BRIGHT   = hex("#FFFFFF");
+    public static final Color SURFACE_VARIANT  = hex("#EADECF");
 
-    // === ACCENT CHÍNH - Cam ấm ===
-    public static final Color PRIMARY          = hex("#F2BE8C");
-    public static final Color PRIMARY_DARK     = hex("#D4A373");
-    public static final Color PRIMARY_CONTAINER= hex("#D4A373");
-    public static final Color ON_PRIMARY       = hex("#482904");
-    public static final Color ON_PRIMARY_CONT  = hex("#5B3912");
+    // === ACCENT CHÍNH - Cam/Nâu ấm (Coffee Theme) ===
+    public static final Color PRIMARY          = hex("#7A5030"); // Rich coffee brown (used for primary buttons, focus highlights, badges)
+    public static final Color PRIMARY_DARK     = hex("#5D3B22");
+    public static final Color PRIMARY_CONTAINER= hex("#8D5F3D"); // Slightly lighter rich brown (used for sidebar active backgrounds)
+    public static final Color ON_PRIMARY       = hex("#FFFFFF"); // Pure white text/icons on primary and container
+    public static final Color ON_PRIMARY_CONT  = hex("#FFFFFF");
 
-    // === ACCENT PHỤ - Xanh dương ===
-    public static final Color SECONDARY       = hex("#9BCBF8");
-    public static final Color SECONDARY_CONT  = hex("#144D73");
+    // === ACCENT PHỤ - Xanh dương (Blue/Sky) ===
+    public static final Color SECONDARY       = hex("#1D4ED8"); // Vibrant blue for secondary accent
+    public static final Color SECONDARY_CONT  = hex("#DBEAFE");
 
-    // === ACCENT XANH LÁ ===
-    public static final Color TERTIARY        = hex("#C3CCA6");
-    public static final Color TERTIARY_CONT   = hex("#A8B18C");
+    // === ACCENT XANH LÁ (Green) ===
+    public static final Color TERTIARY        = hex("#059669"); // Emerald green
+    public static final Color TERTIARY_CONT   = hex("#D1FAE5");
 
-    // === LỖI / CẢNH BÁO ===
-    public static final Color ERROR           = hex("#FFB4AB");
-    public static final Color ERROR_CONTAINER = hex("#93000A");
-    public static final Color ERROR_LIGHT     = new Color(255, 180, 171, 30); // transparent
+    // === LỖI / CẢNH BÁO (Red) ===
+    public static final Color ERROR           = hex("#DC2626"); // Red
+    public static final Color ERROR_CONTAINER = hex("#FEE2E2");
+    public static final Color ERROR_LIGHT     = new Color(220, 38, 38, 30); // transparent
 
     // === TEXT ===
-    public static final Color ON_SURFACE      = hex("#E5E2E1");
-    public static final Color ON_SURFACE_VAR  = hex("#D4C4B7");
+    public static final Color ON_SURFACE      = hex("#2D221A"); // Very dark coffee brown/charcoal (excellent readability, premium feel)
+    public static final Color ON_SURFACE_VAR  = hex("#6E5E53"); // Muted medium coffee brown for subtitles/secondary text
 
     // === BORDER / DIVIDER ===
-    public static final Color OUTLINE         = hex("#9C8E82");
-    public static final Color OUTLINE_VARIANT = hex("#50453B");
+    public static final Color OUTLINE         = hex("#BCAE9F"); // Muted warm grey border
+    public static final Color OUTLINE_VARIANT = hex("#DDD4CA"); // Subtle divider line
 
     // === TRẠNG THÁI HÓA ĐƠN ===
-    public static final Color STATUS_PAID_BG  = new Color(16, 185, 129, 25);
-    public static final Color STATUS_PAID_FG  = new Color(52, 211, 153);
-    public static final Color STATUS_PEND_BG  = new Color(245, 158, 11, 25);
-    public static final Color STATUS_PEND_FG  = new Color(251, 191, 36);
-    public static final Color STATUS_CANC_BG  = new Color(239, 68, 68, 25);
-    public static final Color STATUS_CANC_FG  = new Color(252, 165, 165);
+    public static final Color STATUS_PAID_BG  = new Color(5, 150, 105, 30); // 12% opacity emerald green
+    public static final Color STATUS_PAID_FG  = new Color(4, 120, 87);      // dark green text
+    public static final Color STATUS_PEND_BG  = new Color(217, 119, 6, 30);  // 12% opacity amber
+    public static final Color STATUS_PEND_FG  = new Color(180, 83, 9);       // dark amber text
+    public static final Color STATUS_CANC_BG  = new Color(220, 38, 38, 30);  // 12% opacity red
+    public static final Color STATUS_CANC_FG  = new Color(185, 28, 28);      // dark red text
 
     // === FONT ===
     public static final Font FONT_TITLE_LG   = new Font("Segoe UI", Font.BOLD, 22);
@@ -77,6 +77,11 @@ public class AppTheme {
         int g = Integer.parseInt(hex.substring(2, 4), 16);
         int b = Integer.parseInt(hex.substring(4, 6), 16);
         return new Color(r, g, b);
+    }
+
+    /** Chuyển màu sang định dạng hex String */
+    public static String toHex(Color c) {
+        return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
     }
 
     /** Tạo màu với độ trong suốt */
@@ -114,7 +119,7 @@ public class AppTheme {
 
     /** Lấy màu badge thu/chi */
     public static Color[] getTransactionColor(String loai) {
-        if ("Thu".equals(loai)) return new Color[]{new Color(195, 204, 166, 25), TERTIARY};
-        return new Color[]{new Color(255, 180, 171, 25), ERROR};
+        if ("Thu".equals(loai)) return new Color[]{new Color(5, 150, 105, 30), TERTIARY};
+        return new Color[]{new Color(220, 38, 38, 30), ERROR};
     }
 }

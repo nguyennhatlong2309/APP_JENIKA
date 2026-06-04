@@ -758,15 +758,21 @@ public class ExcelExporter {
     //  XUẤT DANH SÁCH ĐƠN NHẬP HÀNG (.xlsx)
     // ══════════════════════════════════════════════════════════════
 
-    public static void exportPurchaseOrderList(String search, String statusFilter, String fromDate, String toDate, File targetFile) throws Exception {
+    public static void exportPurchaseOrderList(String search, List<String> selectedStatuses, String fromDate, String toDate, File targetFile) throws Exception {
         java.sql.Connection conn = DatabaseManager.getInstance().getConnection();
 
         StringBuilder cond = new StringBuilder(" WHERE 1=1");
         if (search != null && !search.isBlank())
             cond.append(" AND (ncc.ten LIKE '%").append(search)
                     .append("%' OR CAST(nh.id AS CHAR) LIKE '%").append(search).append("%')");
-        if (statusFilter != null && !statusFilter.equals("Tất cả"))
-            cond.append(" AND nh.trang_thai = '").append(statusFilter).append("'");
+        if (selectedStatuses != null && !selectedStatuses.isEmpty()) {
+            cond.append(" AND nh.trang_thai IN (");
+            for (int i = 0; i < selectedStatuses.size(); i++) {
+                if (i > 0) cond.append(",");
+                cond.append("'").append(selectedStatuses.get(i).replace("'", "''")).append("'");
+            }
+            cond.append(")");
+        }
         if (fromDate != null && !fromDate.isBlank())
             cond.append(" AND nh.thoi_gian >= '").append(fromDate).append("'");
         if (toDate != null && !toDate.isBlank())
@@ -889,6 +895,139 @@ public class ExcelExporter {
                 cSum7.setCellFormula("SUM(H4:H" + lastDataRow + ")");
                 cSum7.setCellStyle(sumStyle);
                 setCell(rSum, 8, "", sumLbl);
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+                wb.write(fos);
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  XUẤT DANH SÁCH CHI TIẾT SẢN PHẨM NHẬP HÀNG (.xlsx)
+    // ══════════════════════════════════════════════════════════════
+
+    public static void exportPurchaseOrderProductList(String search, String fromDate, String toDate, File targetFile) throws Exception {
+        java.sql.Connection conn = DatabaseManager.getInstance().getConnection();
+
+        StringBuilder cond = new StringBuilder(" WHERE 1=1");
+        if (search != null && !search.isBlank()) {
+            cond.append(" AND (sp.ten_san_pham LIKE '%").append(search.replace("'", "''"))
+                .append("%' OR ncc.ten LIKE '%").append(search.replace("'", "''"))
+                .append("%' OR CAST(nh.id AS CHAR) LIKE '%").append(search.replace("'", "''")).append("%')");
+        }
+        if (fromDate != null && !fromDate.isBlank()) {
+            cond.append(" AND nh.thoi_gian >= '").append(fromDate).append("'");
+        }
+        if (toDate != null && !toDate.isBlank()) {
+            cond.append(" AND nh.thoi_gian <= '").append(toDate).append("'");
+        }
+
+        String sql = "SELECT ct.id_nhap_hang, ct.so_luong, ct.gia_nhap, ct.thanh_tien, "
+                + " sp.ten_san_pham, "
+                + " IFNULL(ncc.ten, '---') AS ten_ncc, nh.thoi_gian"
+                + " FROM chi_tiet_nhap_hang ct"
+                + " JOIN nhap_hang nh ON ct.id_nhap_hang = nh.id"
+                + " JOIN san_pham sp ON ct.id_san_pham = sp.id"
+                + " LEFT JOIN doi_tac ncc ON nh.id_doi_tac = ncc.id"
+                + cond
+                + " ORDER BY nh.thoi_gian DESC";
+
+        List<Object[]> rows = new ArrayList<>();
+        try (java.sql.Statement s = conn.createStatement();
+             java.sql.ResultSet rs = s.executeQuery(sql)) {
+            java.text.SimpleDateFormat dtFmt = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+            while (rs.next()) {
+                String ngayNhap = "";
+                java.sql.Timestamp ts = rs.getTimestamp("thoi_gian");
+                if (ts != null) ngayNhap = dtFmt.format(ts);
+
+                rows.add(new Object[]{
+                    rs.getString("ten_san_pham"),
+                    "NH-" + rs.getInt("id_nhap_hang"),
+                    ngayNhap,
+                    rs.getString("ten_ncc"),
+                    rs.getLong("gia_nhap"),
+                    rs.getInt("so_luong"),
+                    rs.getLong("thanh_tien")
+                });
+            }
+        }
+
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            XSSFSheet ws = wb.createSheet("Danh Sach SP Nhap");
+
+            // Column widths
+            ws.setColumnWidth(0, 24 * 256); // Sản phẩm
+            ws.setColumnWidth(1, 12 * 256); // Mã đơn
+            ws.setColumnWidth(2, 18 * 256); // Ngày nhập
+            ws.setColumnWidth(3, 22 * 256); // Nhà cung cấp
+            ws.setColumnWidth(4, 16 * 256); // Giá nhập
+            ws.setColumnWidth(5, 12 * 256); // Số lượng
+            ws.setColumnWidth(6, 16 * 256); // Thành tiền
+
+            DataFormat dfmt = wb.createDataFormat();
+
+            // Title row
+            CellStyle titleStyle = createFontStyle(wb, 16, true, false);
+            titleStyle.setAlignment(HorizontalAlignment.CENTER);
+            Row rTitle = ws.createRow(0);
+            rTitle.setHeightInPoints(22);
+            setCell(rTitle, 0, "DANH SÁCH CHI TIẾT SẢN PHẨM NHẬP HÀNG", titleStyle);
+            ws.addMergedRegion(new CellRangeAddress(0, 0, 0, 6));
+
+            // Blank row
+            ws.createRow(1);
+
+            // Header row
+            CellStyle hdrStyle = createTableHeaderStyle(wb, 13);
+            String[] headers = {"Sản phẩm", "Mã đơn", "Ngày nhập", "Nhà cung cấp", "Giá nhập", "Số lượng", "Thành tiền"};
+            Row rHdr = ws.createRow(2);
+            rHdr.setHeightInPoints(20);
+            for (int c = 0; c < headers.length; c++) {
+                setCell(rHdr, c, headers[c], hdrStyle);
+            }
+
+            // Data cells styles
+            CellStyle ctrStyle = createDataCellStyle(wb, HorizontalAlignment.CENTER, null, dfmt, 13);
+            CellStyle leftStyle = createDataCellStyle(wb, HorizontalAlignment.LEFT, null, dfmt, 13);
+            CellStyle numStyle  = createDataCellStyle(wb, HorizontalAlignment.RIGHT, "#,##0", dfmt, 13);
+
+            // Data rows
+            for (int i = 0; i < rows.size(); i++) {
+                Object[] item = rows.get(i);
+                Row r = ws.createRow(3 + i);
+                r.setHeightInPoints(18);
+
+                setCell(r, 0, item[0].toString(), leftStyle);            // Sản phẩm
+                setCell(r, 1, item[1].toString(), ctrStyle);             // Mã đơn
+                setCell(r, 2, item[2].toString(), ctrStyle);             // Ngày nhập
+                setCell(r, 3, item[3] != null ? item[3].toString() : "", leftStyle); // NCC
+                setCellNum(r, 4, (long) item[4], numStyle);            // Giá nhập
+                setCellNum(r, 5, (int) item[5], ctrStyle);             // Số lượng
+                setCellNum(r, 6, (long) item[6], numStyle);            // Thành tiền
+            }
+
+            // Summary row
+            if (!rows.isEmpty()) {
+                int lastDataRow = 3 + rows.size(); // 1-indexed
+                CellStyle sumStyle = createTotalRowStyle(wb, HorizontalAlignment.RIGHT, "#,##0", dfmt, 13);
+                CellStyle sumLbl   = createTotalRowStyle(wb, HorizontalAlignment.LEFT,  null, dfmt, 13);
+                Row rSum = ws.createRow(3 + rows.size());
+                rSum.setHeightInPoints(20);
+                setCell(rSum, 0, "Tổng cộng:", sumLbl);
+                for (int c = 1; c <= 4; c++) setCell(rSum, c, "", sumLbl);
+                ws.addMergedRegion(new CellRangeAddress(3 + rows.size(), 3 + rows.size(), 0, 4));
+                
+                // Số lượng tổng cộng
+                Cell cSum5 = rSum.createCell(5);
+                cSum5.setCellFormula("SUM(F4:F" + lastDataRow + ")");
+                cSum5.setCellStyle(sumStyle);
+                
+                // Thành tiền tổng cộng
+                Cell cSum6 = rSum.createCell(6);
+                cSum6.setCellFormula("SUM(G4:G" + lastDataRow + ")");
+                cSum6.setCellStyle(sumStyle);
             }
 
             try (FileOutputStream fos = new FileOutputStream(targetFile)) {

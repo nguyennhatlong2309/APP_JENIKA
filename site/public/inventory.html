@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Jenika | Inventory Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0A0E17;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(2, 223, 195, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(0, 210, 255, 0.05) 0%, transparent 40%);
+            color: #dce4e1;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: rgba(17, 22, 37, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-button {
+            box-shadow: 0 0 15px rgba(73, 252, 223, 0.3);
+            transition: all 0.3s ease;
+        }
+        .glow-button:hover {
+            box-shadow: 0 0 25px rgba(73, 252, 223, 0.5);
+            transform: translateY(-1px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-glow {
+            background: linear-gradient(90deg, rgba(73, 252, 223, 0.1) 0%, transparent 100%);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed-variant": "#624000",
+                      "error": "#EF4444",
+                      "surface-container-lowest": "#08100e",
+                      "outline-variant": "#3b4a46",
+                      "surface-variant": "#2e3634",
+                      "surface-bright": "#333b38",
+                      "surface-dim": "#0d1513",
+                      "surface-tint": "#02dfc3",
+                      "inverse-on-surface": "#2a3230",
+                      "surface-container": "#19211f",
+                      "success": "#10B981",
+                      "on-error-container": "#ffdad6",
+                      "on-primary-fixed": "#00201b",
+                      "surface-container-highest": "#2e3634",
+                      "on-secondary": "#003543",
+                      "surface-container-low": "#151d1b",
+                      "on-surface-variant": "#bacac5",
+                      "secondary-fixed-dim": "#47d6ff",
+                      "tertiary-container": "#ffba4e",
+                      "on-surface": "#dce4e1",
+                      "error-container": "#93000a",
+                      "surface-glass": "rgba(17, 22, 37, 0.65)",
+                      "surface": "#0A0E17",
+                      "secondary": "#a5e7ff",
+                      "on-secondary-fixed": "#001f28",
+                      "border-glass": "rgba(255, 255, 255, 0.08)",
+                      "text-primary": "#FFFFFF",
+                      "tertiary-fixed": "#ffddb2",
+                      "secondary-fixed": "#b6ebff",
+                      "inverse-primary": "#006b5c",
+                      "primary": "#49fcdf",
+                      "background": "#0d1513",
+                      "warning": "#F59E0B",
+                      "primary-fixed": "#49fcdf",
+                      "on-error": "#690005",
+                      "tertiary": "#ffdeb3",
+                      "surface-container-high": "#242c29",
+                      "text-variant": "#94A3B8",
+                      "primary-fixed-dim": "#02dfc3",
+                      "on-secondary-fixed-variant": "#004e60",
+                      "tertiary-fixed-dim": "#ffba4e",
+                      "on-primary-container": "#005e51",
+                      "on-primary-fixed-variant": "#005045",
+                      "on-tertiary-container": "#724b00",
+                      "inverse-surface": "#dce4e1",
+                      "on-tertiary-fixed": "#291800",
+                      "on-background": "#dce4e1",
+                      "on-primary": "#00382f",
+                      "outline": "#84948f",
+                      "primary-container": "#03dfc3",
+                      "on-tertiary": "#442b00",
+                      "secondary-container": "#00d2ff",
+                      "on-secondary-container": "#00566a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-sm": "8px",
+                      "stack-lg": "32px",
+                      "sidebar-width": "260px",
+                      "container-padding": "24px",
+                      "stack-md": "16px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "label-md": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "label-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="flex min-h-screen">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-screen w-[260px] bg-surface-glass backdrop-blur-[12px] border-r border-border-glass z-40 flex flex-col py-6">
+<div class="px-6 mb-10">
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight font-bold">Jenika</h1>
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-60">Store Management</p>
+</div>
+<nav class="flex-1 space-y-1 px-3">
+<!-- Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-colors duration-200 group" href="index.html">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<!-- Sales Orders -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-colors duration-200 group" href="sales.html">
+<span class="material-symbols-outlined text-xl">shopping_cart</span>
+<span class="font-label-md text-label-md">Sales Orders</span>
+</a>
+<!-- Purchase Orders -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-colors duration-200 group" href="purchases.html">
+<span class="material-symbols-outlined text-xl">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Purchase Orders</span>
+</a>
+<!-- Inventory (ACTIVE) -->
+<a class="flex items-center gap-3 px-4 py-3 border-l-4 border-primary bg-white/5 text-primary font-bold group" href="inventory.html">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-label-md text-label-md">Inventory</span>
+</a>
+<!-- Partners -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-colors duration-200 group" href="partners.html">
+<span class="material-symbols-outlined text-xl">handshake</span>
+<span class="font-label-md text-label-md">Partners</span>
+</a>
+<!-- Expenses -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-colors duration-200 group" href="expenses.html">
+<span class="material-symbols-outlined text-xl">payments</span>
+<span class="font-label-md text-label-md">Expenses</span>
+</a>
+<!-- Activity Logs -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-colors duration-200 group" href="activity.html">
+<span class="material-symbols-outlined text-xl">history</span>
+<span class="font-label-md text-label-md">Activity Logs</span>
+</a>
+</nav>
+<div class="px-3 pt-6 border-t border-border-glass">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-colors duration-200 group" href="settings.html">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[260px] flex-1 min-h-screen relative">
+<!-- Top App Bar -->
+<header class="h-16 flex items-center justify-between px-container-padding fixed top-0 right-0 w-[calc(100%-260px)] z-30 bg-surface/40 backdrop-blur-[8px] border-b border-border-glass">
+<div class="flex items-center gap-8 flex-1">
+<h2 class="font-headline-md text-headline-md font-bold text-primary">Inventory Catalog</h2>
+<div class="max-w-md w-full relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant opacity-60">search</span>
+<input class="w-full bg-surface-container-lowest border border-border-glass rounded-lg py-2 pl-10 pr-4 text-body-md focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all" placeholder="Search devices, serial numbers..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="bg-primary text-on-primary px-5 py-2 rounded-lg font-label-md flex items-center gap-2 glow-button transition-all" onclick="document.getElementById('addModal').classList.remove('hidden')">
+<span class="material-symbols-outlined text-lg">add</span>
+<span>Add New Device</span>
+</button>
+<div class="flex items-center gap-4 border-l border-border-glass pl-6">
+<button class="relative text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="flex items-center gap-3">
+<img alt="Manager Profile" class="w-8 h-8 rounded-full border border-primary/20" data-alt="A professional close-up headshot of a modern tech store manager with a clean, approachable appearance, set against a blurred background of a high-end electronics retail space. The lighting is crisp and cool-toned, echoing the dark-mode dashboard's teal and indigo accents, emphasizing professionalism and technical expertise in a futuristic retail environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCi17XWyJyMOuWwDxJ8J_6jan1yBt6DJs-YQCi6Ect3R61PE2Vr4s-8RhrKraanO3_uMC2KC16fYWRlQdakwZeigdU2-OB_nz412nER9GxjG_S0cTOtEmeGAgG91C_8iJtX1pkShVRD3UN0f-UNay0fFk2Hu3ROfbTjBKtPHd5mXiZO_YYnARoE1xlDG55-WeCJHHvkvx1rV9L7W-LG0hd3NNXPk5gu7PWqZmRNcwD8WZXw0ocvWLQv9NRBgdNDvfDEHMZUnOjDVQ"/>
+<div class="hidden xl:block">
+<p class="text-label-md font-bold text-on-surface leading-tight">Alex Tran</p>
+<p class="text-[10px] text-on-surface-variant">Store Admin</p>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="pt-24 px-container-padding pb-10">
+<!-- Stats Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-stack-lg">
+<div class="glass-card p-6 rounded-xl flex flex-col justify-between hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Total Devices</p>
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">inventory_2</span>
+</div>
+<div>
+<h3 class="text-headline-md font-bold text-on-surface">1,420 Items</h3>
+<p class="text-success text-label-sm mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>+12% from last month</span>
+</p>
+</div>
+</div>
+<div class="glass-card p-6 rounded-xl flex flex-col justify-between hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Catalog Value</p>
+<span class="material-symbols-outlined text-secondary bg-secondary/10 p-2 rounded-lg">account_balance_wallet</span>
+</div>
+<div>
+<h3 class="text-headline-md font-bold text-on-surface">18,450M VND</h3>
+<p class="text-on-surface-variant text-label-sm mt-1">Est. Liquidation Value</p>
+</div>
+</div>
+<div class="glass-card p-6 rounded-xl flex flex-col justify-between hover:border-error/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Low Stock Alert</p>
+<span class="material-symbols-outlined text-error bg-error/10 p-2 rounded-lg">warning</span>
+</div>
+<div>
+<h3 class="text-headline-md font-bold text-error">8 Devices</h3>
+<p class="text-error/70 text-label-sm mt-1">Require immediate restock</p>
+</div>
+</div>
+<div class="glass-card p-6 rounded-xl flex flex-col justify-between hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Active Categories</p>
+<span class="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg">category</span>
+</div>
+<div>
+<h3 class="text-headline-md font-bold text-on-surface">6 Active Classes</h3>
+<p class="text-on-surface-variant text-label-sm mt-1">Across 12 brands</p>
+</div>
+</div>
+</div>
+<!-- Main Table Section -->
+<div class="glass-card rounded-xl overflow-hidden">
+<!-- Filter Tabs -->
+<div class="flex items-center justify-between p-6 border-b border-border-glass">
+<div class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+<button class="px-5 py-2 rounded-full text-label-md font-bold bg-primary/20 text-primary border border-primary/30">All</button>
+<button class="px-5 py-2 rounded-full text-label-md text-on-surface-variant hover:bg-white/5 transition-all">Smartphones</button>
+<button class="px-5 py-2 rounded-full text-label-md text-on-surface-variant hover:bg-white/5 transition-all">Laptops</button>
+<button class="px-5 py-2 rounded-full text-label-md text-on-surface-variant hover:bg-white/5 transition-all">Tablets</button>
+<button class="px-5 py-2 rounded-full text-label-md text-on-surface-variant hover:bg-white/5 transition-all">Audio</button>
+<button class="px-5 py-2 rounded-full text-label-md text-on-surface-variant hover:bg-white/5 transition-all">Accessories</button>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-white/5 rounded-lg border border-border-glass transition-all">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-white/5 rounded-lg border border-border-glass transition-all">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+<!-- Table Content -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-white/2">
+<tr>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest border-b border-border-glass">Item Code</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest border-b border-border-glass">Device Name</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest border-b border-border-glass">Category</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest border-b border-border-glass">Stock Level</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest border-b border-border-glass">Cost Price</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest border-b border-border-glass">Selling Price</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest border-b border-border-glass text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-glass">
+<!-- Row 1 -->
+<tr class="hover:bg-white/5 transition-all group">
+<td class="px-6 py-4 font-mono text-label-sm text-primary">#JK-00124</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">smartphone</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface group-hover:text-primary transition-colors">iPhone 15 Pro Max</p>
+<p class="text-[10px] text-on-surface-variant">Natural Titanium / 256GB</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-label-sm">Smartphones</span>
+</td>
+<td class="px-6 py-4">
+<div class="w-32">
+<div class="flex justify-between items-center mb-1">
+<span class="text-label-sm text-on-surface">24 units</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-success rounded-full" style="width: 80%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-label-md">28,500k</td>
+<td class="px-6 py-4 text-label-md font-bold text-on-surface">34,990k</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-2 text-on-surface-variant hover:text-success transition-colors"><span class="material-symbols-outlined">add_circle</span></button>
+</td>
+</tr>
+<!-- Row 2 - Low Stock -->
+<tr class="hover:bg-white/5 transition-all group bg-error/5">
+<td class="px-6 py-4 font-mono text-label-sm text-primary">#JK-00582</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">laptop_mac</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface group-hover:text-primary transition-colors">MacBook Air M2</p>
+<p class="text-[10px] text-on-surface-variant">Midnight / 16GB / 512GB</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-label-sm">Laptops</span>
+</td>
+<td class="px-6 py-4">
+<div class="w-32">
+<div class="flex justify-between items-center mb-1">
+<span class="text-label-sm text-error font-bold">3 units</span>
+<span class="text-[8px] bg-error text-white px-1.5 py-0.5 rounded uppercase font-bold">Low</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 15%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-label-md">24,200k</td>
+<td class="px-6 py-4 text-label-md font-bold text-on-surface">29,990k</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-2 text-on-surface-variant hover:text-success transition-colors"><span class="material-symbols-outlined">add_circle</span></button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-white/5 transition-all group">
+<td class="px-6 py-4 font-mono text-label-sm text-primary">#JK-00219</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">headphones</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface group-hover:text-primary transition-colors">AirPods Max</p>
+<p class="text-[10px] text-on-surface-variant">Space Gray</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-label-sm">Audio</span>
+</td>
+<td class="px-6 py-4">
+<div class="w-32">
+<div class="flex justify-between items-center mb-1">
+<span class="text-label-sm text-on-surface">12 units</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-success rounded-full" style="width: 45%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-label-md">11,500k</td>
+<td class="px-6 py-4 text-label-md font-bold text-on-surface">14,990k</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-2 text-on-surface-variant hover:text-success transition-colors"><span class="material-symbols-outlined">add_circle</span></button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-white/5 transition-all group">
+<td class="px-6 py-4 font-mono text-label-sm text-primary">#JK-00331</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">tablet_android</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface group-hover:text-primary transition-colors">Samsung Tab S9</p>
+<p class="text-[10px] text-on-surface-variant">Graphite / 128GB</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-label-sm">Tablets</span>
+</td>
+<td class="px-6 py-4">
+<div class="w-32">
+<div class="flex justify-between items-center mb-1">
+<span class="text-label-sm text-on-surface">8 units</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-success rounded-full" style="width: 30%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-label-md">15,800k</td>
+<td class="px-6 py-4 text-label-md font-bold text-on-surface">19,990k</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-2 text-on-surface-variant hover:text-success transition-colors"><span class="material-symbols-outlined">add_circle</span></button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-white/5 transition-all group">
+<td class="px-6 py-4 font-mono text-label-sm text-primary">#JK-00902</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">watch</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface group-hover:text-primary transition-colors">Apple Watch Ultra 2</p>
+<p class="text-[10px] text-on-surface-variant">Alpine Loop Blue</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-label-sm">Accessories</span>
+</td>
+<td class="px-6 py-4">
+<div class="w-32">
+<div class="flex justify-between items-center mb-1">
+<span class="text-label-sm text-on-surface">15 units</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-success rounded-full" style="width: 55%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-label-md">18,200k</td>
+<td class="px-6 py-4 text-label-md font-bold text-on-surface">21,990k</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">edit</span></button>
+<button class="p-2 text-on-surface-variant hover:text-success transition-colors"><span class="material-symbols-outlined">add_circle</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 flex items-center justify-between border-t border-border-glass">
+<p class="text-label-sm text-on-surface-variant">Showing 1 to 5 of 1,420 devices</p>
+<div class="flex gap-2">
+<button class="p-2 rounded-lg border border-border-glass text-on-surface-variant hover:text-on-surface disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="px-3 py-1 rounded-lg bg-primary/20 text-primary border border-primary/30 font-label-sm">1</button>
+<button class="px-3 py-1 rounded-lg hover:bg-white/5 text-on-surface-variant font-label-sm">2</button>
+<button class="px-3 py-1 rounded-lg hover:bg-white/5 text-on-surface-variant font-label-sm">3</button>
+<button class="p-2 rounded-lg border border-border-glass text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Modal Overlay (Add New Device) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md hidden" id="addModal">
+<div class="glass-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden scale-in-center">
+<div class="p-6 border-b border-border-glass flex justify-between items-center bg-white/2">
+<div>
+<h3 class="text-headline-md font-bold text-primary">Register New Device</h3>
+<p class="text-label-sm text-on-surface-variant">Enter the specific details for the inventory catalog.</p>
+</div>
+<button class="p-2 rounded-full hover:bg-white/5 text-on-surface-variant hover:text-error transition-all" onclick="document.getElementById('addModal').classList.add('hidden')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Product Code -->
+<div class="space-y-2">
+<label class="font-label-sm text-on-surface-variant uppercase tracking-wider">Product Code</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg py-2.5 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="#JK-XXXX" type="text"/>
+</div>
+<!-- Category -->
+<div class="space-y-2">
+<label class="font-label-sm text-on-surface-variant uppercase tracking-wider">Category</label>
+<select class="w-full bg-surface-container-low border border-border-glass rounded-lg py-2.5 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all appearance-none text-on-surface">
+<option>Smartphones</option>
+<option>Laptops</option>
+<option>Tablets</option>
+<option>Audio</option>
+<option>Accessories</option>
+</select>
+</div>
+<!-- Name -->
+<div class="space-y-2 md:col-span-2">
+<label class="font-label-sm text-on-surface-variant uppercase tracking-wider">Product Name</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg py-2.5 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="e.g. MacBook Pro 14 (M3 Max)" type="text"/>
+</div>
+<!-- Prices -->
+<div class="space-y-2">
+<label class="font-label-sm text-on-surface-variant uppercase tracking-wider">Cost Price (VND)</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg py-2.5 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="25,000,000" type="number"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-sm text-on-surface-variant uppercase tracking-wider">Selling Price (VND)</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg py-2.5 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="32,000,000" type="number"/>
+</div>
+<!-- Stock Levels -->
+<div class="space-y-2">
+<label class="font-label-sm text-on-surface-variant uppercase tracking-wider">Initial Stock Level</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg py-2.5 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="0" type="number"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-sm text-on-surface-variant uppercase tracking-wider">Reorder Threshold</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg py-2.5 px-4 focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="5" type="number"/>
+</div>
+</div>
+<div class="p-6 bg-white/2 border-t border-border-glass flex justify-end gap-4">
+<button class="px-6 py-2.5 rounded-lg font-label-md text-on-surface hover:bg-white/5 transition-all" onclick="document.getElementById('addModal').classList.add('hidden')">Cancel</button>
+<button class="bg-primary text-on-primary px-8 py-2.5 rounded-lg font-label-md glow-button font-bold">Save Device</button>
+</div>
+</div>
+</div>
+<script>
+        // Modal interaction script
+        const modal = document.getElementById('addModal');
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Close on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                modal.classList.add('hidden');
+            }
+        });
+    </script>
+</body></html>

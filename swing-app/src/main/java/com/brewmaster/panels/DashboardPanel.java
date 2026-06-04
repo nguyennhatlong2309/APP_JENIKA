@@ -372,14 +372,14 @@ public class DashboardPanel extends JPanel {
                 }
 
                 // Giá trị kho hàng: bảng san_pham
-                String sqlInv = "SELECT COALESCE(SUM(gia_nhap_hien_tai * so_luong_ton), 0) FROM san_pham";
+                String sqlInv = "SELECT COALESCE(SUM(gia_nhap_hien_tai * so_luong_ton), 0) FROM san_pham WHERE bi_xoa = 0";
                 try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlInv)) {
                     if (rs.next())
                         inventoryValue = formatVND(rs.getLong(1));
                 }
 
-                // Tổng chi phí: bảng thu_chi (cột tien_chi mới)
-                String sqlTotalExp = "SELECT COALESCE(SUM(tien_chi), 0) FROM thu_chi";
+                // Tổng chi phí: bảng thu_chi + giá nhập của sản phẩm bán hàng
+                String sqlTotalExp = "SELECT COALESCE(SUM(COALESCE(tc.tien_chi, 0) + COALESCE((SELECT SUM(ct.so_luong * sp.gia_nhap_hien_tai) FROM chi_tiet_ban_hang ct JOIN san_pham sp ON ct.id_san_pham = sp.id WHERE ct.id_ban_hang = tc.id_ban_hang), 0)), 0) FROM thu_chi tc";
                 try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlTotalExp)) {
                     if (rs.next())
                         totalExpense = formatVND(rs.getLong(1));
@@ -422,7 +422,7 @@ public class DashboardPanel extends JPanel {
                         +
                         "FROM san_pham sp " +
                         "LEFT JOIN don_vi_tinh dv ON sp.id_don_vi = dv.id " +
-                        "WHERE sp.trang_thai = 'Cảnh báo' " +
+                        "WHERE sp.trang_thai = 'Cảnh báo' AND sp.bi_xoa = 0 " +
                         "ORDER BY sp.so_luong_ton ASC " +
                         "LIMIT 5";
                 stockAlertItems.clear();

@@ -25,18 +25,36 @@ public class SalesOrdersPanel extends JPanel {
     private static final int PAGE_SIZE = 10;
     private int currentPage = 1;
     private int totalItems = 0;
+    private int prodCurrentPage = 1;
+    private int prodTotalItems = 0;
 
     private final NumberFormat vndFormat = NumberFormat.getNumberInstance(new Locale("vi", "VN"));
+    private JTabbedPane tabbedPane;
+
+    // === Tab 1 (Invoice) UI components ===
     private DefaultTableModel tableModel;
     private StyledTable table;
     private Pagination pagination;
     private JTextField searchField;
-    private JComboBox<String> statusFilter;
+    private JButton statusFilterBtn;
+    private JPopupMenu statusMenu;
+    private JTextField statusSearchField;
+    private final java.util.Map<String, JCheckBox> statusCheckboxes = new java.util.LinkedHashMap<>();
     private DatePicker dpFrom;
     private DatePicker dpTo;
-
-    // Summary labels
     private JLabel lblRevenue, lblOrderCount, lblPending, lblUnpaidCustomers;
+
+    // === Tab 2 (Product) UI components ===
+    private DefaultTableModel productTableModel;
+    private StyledTable productTable;
+    private Pagination prodPagination;
+    private JTextField prodSearchField;
+    private JButton typeFilterBtn;
+    private JPopupMenu typeMenu;
+    private final java.util.Map<String, JCheckBox> typeCheckboxes = new java.util.LinkedHashMap<>();
+    private DatePicker prodDpFrom;
+    private DatePicker prodDpTo;
+    private JLabel lblProdRevenue, lblProdProfit, lblProdQtySold, lblProdQtyGifted;
 
     public SalesOrdersPanel() {
         setBackground(AppTheme.BACKGROUND);
@@ -78,29 +96,42 @@ public class SalesOrdersPanel extends JPanel {
         pageHeader.add(titleSection, BorderLayout.WEST);
         pageHeader.add(createBtn, BorderLayout.EAST);
 
-        // === FILTER SECTION ===
-        JPanel filterSection = buildFilterSection();
+        // === TAB 1: THEO HÓA ĐƠN ===
+        JPanel tab1Panel = new JPanel(new BorderLayout(0, 12));
+        tab1Panel.setOpaque(false);
 
-        // === MAIN TABLE SECTION ===
-        JPanel tableSection = buildTableSection();
+        JPanel topPanel1 = new JPanel(new BorderLayout(0, 12));
+        topPanel1.setOpaque(false);
+        topPanel1.add(buildSummaryCards(), BorderLayout.NORTH);
+        topPanel1.add(buildFilterSection(), BorderLayout.CENTER);
 
-        // === SUMMARY CARDS ===
-        JPanel summaryCards = buildSummaryCards();
+        tab1Panel.add(topPanel1, BorderLayout.NORTH);
+        tab1Panel.add(buildInvoiceTableSection(), BorderLayout.CENTER);
 
-        // Assemble
-        JPanel mainContent = new JPanel(new BorderLayout(0, 12));
-        mainContent.setOpaque(false);
+        // === TAB 2: THEO SẢN PHẨM ===
+        JPanel tab2Panel = new JPanel(new BorderLayout(0, 12));
+        tab2Panel.setOpaque(false);
 
-        JPanel topPanel = new JPanel(new BorderLayout(0, 12));
-        topPanel.setOpaque(false);
-        topPanel.add(summaryCards, BorderLayout.NORTH);
-        topPanel.add(filterSection, BorderLayout.CENTER);
+        JPanel topPanel2 = new JPanel(new BorderLayout(0, 12));
+        topPanel2.setOpaque(false);
+        topPanel2.add(buildProductSummaryCards(), BorderLayout.NORTH);
+        topPanel2.add(buildProductFilterSection(), BorderLayout.CENTER);
 
-        mainContent.add(topPanel, BorderLayout.NORTH);
-        mainContent.add(tableSection, BorderLayout.CENTER);
+        tab2Panel.add(topPanel2, BorderLayout.NORTH);
+        tab2Panel.add(buildProductTableSection(), BorderLayout.CENTER);
+
+        // === TABBED PANE ===
+        tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(AppTheme.FONT_LABEL);
+        tabbedPane.addTab("Danh sách Hóa đơn", tab1Panel);
+        tabbedPane.addTab("Xem theo Sản phẩm", tab2Panel);
+
+        tabbedPane.addChangeListener(e -> {
+            loadData();
+        });
 
         content.add(pageHeader, BorderLayout.NORTH);
-        content.add(mainContent, BorderLayout.CENTER);
+        content.add(tabbedPane, BorderLayout.CENTER);
 
         add(content, BorderLayout.CENTER);
     }
@@ -126,14 +157,89 @@ public class SalesOrdersPanel extends JPanel {
         searchWrapper.add(searchField, BorderLayout.CENTER);
 
         // Status filter
-        statusFilter = new JComboBox<>(new String[] {
-                "Tất cả", "Hoàn thành", "Hẹn", "Đã Hủy"
+        statusFilterBtn = new JButton("Trạng thái ↓");
+        statusFilterBtn.setFont(AppTheme.FONT_BODY_MD);
+        statusFilterBtn.setPreferredSize(new Dimension(170, 34));
+        statusFilterBtn.setBackground(AppTheme.SURFACE_LOW);
+        statusFilterBtn.setForeground(AppTheme.ON_SURFACE);
+        statusFilterBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)));
+        statusFilterBtn.setFocusPainted(false);
+        statusFilterBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        statusFilterBtn.setHorizontalAlignment(SwingConstants.LEFT);
+
+        statusMenu = new JPopupMenu();
+        statusMenu.setBackground(AppTheme.SURFACE_LOW);
+        statusMenu.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+        statusMenu.setLayout(new BorderLayout());
+
+        JPanel popupContent = new JPanel(new BorderLayout(0, 6));
+        popupContent.setBackground(AppTheme.SURFACE_LOW);
+        popupContent.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        statusSearchField = new JTextField();
+        statusSearchField.setFont(AppTheme.FONT_BODY_MD);
+        statusSearchField.putClientProperty("JTextField.placeholderText", " Tìm trạng thái...");
+        statusSearchField.setPreferredSize(new Dimension(220, 32));
+        statusSearchField.setBackground(AppTheme.SURFACE_MED);
+        statusSearchField.setForeground(AppTheme.ON_SURFACE);
+        statusSearchField.setCaretColor(AppTheme.ON_SURFACE);
+        statusSearchField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+
+        JPanel checkboxPanel = new JPanel();
+        checkboxPanel.setLayout(new BoxLayout(checkboxPanel, BoxLayout.Y_AXIS));
+        checkboxPanel.setBackground(AppTheme.SURFACE_LOW);
+
+        String[] statuses = { "Hoàn thành", "Hẹn", "Đã Hủy" };
+        for (String status : statuses) {
+            JCheckBox cb = new JCheckBox(status);
+            cb.setFont(AppTheme.FONT_BODY_MD);
+            cb.setForeground(AppTheme.ON_SURFACE);
+            cb.setBackground(AppTheme.SURFACE_LOW);
+            cb.addActionListener(e -> {
+                currentPage = 1;
+                updateStatusFilterButtonText();
+                loadData();
+            });
+            statusCheckboxes.put(status, cb);
+            checkboxPanel.add(cb);
+        }
+
+        JScrollPane scrollPane = new JScrollPane(checkboxPanel);
+        scrollPane.setPreferredSize(new Dimension(220, 150));
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(12);
+
+        popupContent.add(statusSearchField, BorderLayout.NORTH);
+        popupContent.add(scrollPane, BorderLayout.CENTER);
+        statusMenu.add(popupContent);
+
+        // Document Listener for filtering
+        statusSearchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+
+            private void filter() {
+                String text = statusSearchField.getText().trim().toLowerCase();
+                checkboxPanel.removeAll();
+                for (JCheckBox cb : statusCheckboxes.values()) {
+                    if (text.isEmpty() || cb.getText().toLowerCase().contains(text)) {
+                        checkboxPanel.add(cb);
+                    }
+                }
+                scrollPane.getVerticalScrollBar().setValue(0);
+                checkboxPanel.revalidate();
+                checkboxPanel.repaint();
+            }
         });
-        statusFilter.setFont(AppTheme.FONT_BODY_MD);
-        statusFilter.setPreferredSize(new Dimension(160, 34));
-        statusFilter.addActionListener(e -> {
-            currentPage = 1;
-            loadData();
+
+        statusFilterBtn.addActionListener(e -> {
+            statusMenu.show(statusFilterBtn, 0, statusFilterBtn.getHeight());
+            statusSearchField.requestFocusInWindow();
         });
 
         // Date filters
@@ -163,7 +269,13 @@ public class SalesOrdersPanel extends JPanel {
         refreshBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         refreshBtn.addActionListener(e -> {
             searchField.setText("");
-            statusFilter.setSelectedIndex(0);
+            if (statusSearchField != null) {
+                statusSearchField.setText("");
+            }
+            for (JCheckBox cb : statusCheckboxes.values()) {
+                cb.setSelected(false);
+            }
+            updateStatusFilterButtonText();
             dpFrom.setValue(LocalDate.now().withDayOfMonth(1));
             dpTo.setValue(LocalDate.now());
             currentPage = 1;
@@ -189,7 +301,7 @@ public class SalesOrdersPanel extends JPanel {
         panel.add(searchLbl);
         panel.add(searchWrapper);
         panel.add(statusLbl);
-        panel.add(statusFilter);
+        panel.add(statusFilterBtn);
         panel.add(fromLbl);
         panel.add(dpFrom);
         panel.add(toLbl);
@@ -200,12 +312,11 @@ public class SalesOrdersPanel extends JPanel {
         return panel;
     }
 
-    private JPanel buildTableSection() {
+    private JPanel buildInvoiceTableSection() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(AppTheme.SURFACE_LOW);
         panel.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
 
-        // Table model
         String[] cols = { "Mã HĐ", "Ngày lập", "Ngày lắp", "Khách hàng", "Nhân viên", "Tổng tiền", "Đặt cọc",
                 "Khách nợ",
                 "Trạng thái", "Thao tác" };
@@ -216,7 +327,7 @@ public class SalesOrdersPanel extends JPanel {
             }
         };
         table = new StyledTable(tableModel);
-        table.setAutoCreateRowSorter(false);
+        table.setAutoCreateRowSorter(true);
 
         // Mã HĐ column - primary color
         table.getColumnModel().getColumn(0).setCellRenderer((t, v, sel, foc, r, c) -> {
@@ -271,7 +382,8 @@ public class SalesOrdersPanel extends JPanel {
                 int row = table.rowAtPoint(evt.getPoint());
                 int col = table.columnAtPoint(evt.getPoint());
                 if (row >= 0) {
-                    String maHD = tableModel.getValueAt(row, 0).toString(); // "BH-{id}"
+                    int modelRow = table.convertRowIndexToModel(row);
+                    String maHD = tableModel.getValueAt(modelRow, 0).toString(); // "BH-{id}"
                     try {
                         int id = Integer.parseInt(maHD.replace("BH-", ""));
                         if (col == 9) {
@@ -285,7 +397,9 @@ public class SalesOrdersPanel extends JPanel {
                                 exportSingleSalesOrder(id);
                             }
                         } else {
-                            openViewDialog(id);
+                            if (evt.getClickCount() == 2) {
+                                openViewDialog(id);
+                            }
                         }
                     } catch (NumberFormatException ignored) {
                     }
@@ -318,9 +432,278 @@ public class SalesOrdersPanel extends JPanel {
         row.add(buildSmallCard("💵", "Doanh thu", lblRevenue, new Color(16, 185, 129)));
         row.add(buildSmallCard("💳", "Tiền cọc", lblOrderCount, AppTheme.PRIMARY));
         row.add(buildSmallCard("⏳", "Lịch hẹn", lblPending, new Color(245, 158, 11)));
-        row.add(buildSmallCard("👥", "Khách còn nợ", lblUnpaidCustomers, new Color(239, 68, 68)));
+        row.add(buildSmallCard("📄", "Hóa đơn khách còn nợ", lblUnpaidCustomers, new Color(239, 68, 68)));
 
         return row;
+    }
+
+    private JPanel buildProductSummaryCards() {
+        JPanel row = new JPanel(new GridLayout(1, 4, 12, 0));
+        row.setOpaque(false);
+        row.setPreferredSize(new Dimension(0, 96));
+        row.setBorder(new EmptyBorder(0, 0, 4, 0));
+
+        lblProdRevenue = new JLabel("...");
+        lblProdProfit = new JLabel("...");
+        lblProdQtySold = new JLabel("...");
+        lblProdQtyGifted = new JLabel("...");
+
+        row.add(buildSmallCard("💵", "Doanh thu", lblProdRevenue, new Color(16, 185, 129)));
+        row.add(buildSmallCard("📈", "Lợi nhuận lý thuyết", lblProdProfit, AppTheme.PRIMARY));
+        row.add(buildSmallCard("📦", "Số sản phẩm bán được", lblProdQtySold, new Color(245, 158, 11)));
+        row.add(buildSmallCard("🎁", "Số sản phẩm tặng", lblProdQtyGifted, new Color(239, 68, 68)));
+
+        return row;
+    }
+
+    private JPanel buildProductFilterSection() {
+        JPanel panel = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 5));
+        panel.setBackground(AppTheme.SURFACE_LOW);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                new EmptyBorder(10, 12, 10, 12)));
+
+        // Search field
+        JPanel searchWrapper = new JPanel(new BorderLayout());
+        searchWrapper.setOpaque(false);
+        searchWrapper.setPreferredSize(new Dimension(240, 34));
+        prodSearchField = new JTextField();
+        prodSearchField.setFont(AppTheme.FONT_BODY_MD);
+        prodSearchField.putClientProperty("JTextField.placeholderText", " Tìm kiếm sản phẩm...");
+        prodSearchField.addActionListener(e -> {
+            prodCurrentPage = 1;
+            loadData();
+        });
+        searchWrapper.add(prodSearchField, BorderLayout.CENTER);
+
+        // Classification filter
+        typeFilterBtn = new JButton("Phân loại ↓");
+        typeFilterBtn.setFont(AppTheme.FONT_BODY_MD);
+        typeFilterBtn.setPreferredSize(new Dimension(170, 34));
+        typeFilterBtn.setBackground(AppTheme.SURFACE_LOW);
+        typeFilterBtn.setForeground(AppTheme.ON_SURFACE);
+        typeFilterBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)));
+        typeFilterBtn.setFocusPainted(false);
+        typeFilterBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        typeFilterBtn.setHorizontalAlignment(SwingConstants.LEFT);
+
+        typeMenu = new JPopupMenu();
+        typeMenu.setBackground(AppTheme.SURFACE_LOW);
+        typeMenu.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+        typeMenu.setLayout(new BorderLayout());
+
+        JPanel popupContent = new JPanel();
+        popupContent.setLayout(new BoxLayout(popupContent, BoxLayout.Y_AXIS));
+        popupContent.setBackground(AppTheme.SURFACE_LOW);
+        popupContent.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        String[] types = { "Bán", "Tặng" };
+        for (String t : types) {
+            JCheckBox cb = new JCheckBox(t);
+            cb.setFont(AppTheme.FONT_BODY_MD);
+            cb.setForeground(AppTheme.ON_SURFACE);
+            cb.setBackground(AppTheme.SURFACE_LOW);
+            cb.addActionListener(e -> {
+                prodCurrentPage = 1;
+                updateTypeFilterButtonText();
+                loadData();
+            });
+            typeCheckboxes.put(t, cb);
+            popupContent.add(cb);
+        }
+        typeMenu.add(popupContent);
+
+        typeFilterBtn.addActionListener(e -> {
+            typeMenu.show(typeFilterBtn, 0, typeFilterBtn.getHeight());
+        });
+
+        // Date filters
+        prodDpFrom = new DatePicker();
+        prodDpFrom.setValue(LocalDate.now().withDayOfMonth(1));
+        prodDpFrom.setPreferredSize(new Dimension(130, 34));
+        prodDpFrom.addActionListener(e -> {
+            prodCurrentPage = 1;
+            loadData();
+        });
+
+        prodDpTo = new DatePicker();
+        prodDpTo.setValue(LocalDate.now());
+        prodDpTo.setPreferredSize(new Dimension(130, 34));
+        prodDpTo.addActionListener(e -> {
+            prodCurrentPage = 1;
+            loadData();
+        });
+
+        // Refresh button
+        JButton refreshBtn = new JButton("<html><font face='Segoe UI'>↻</font>  Làm mới</html>");
+        refreshBtn.setFont(AppTheme.FONT_LABEL);
+        refreshBtn.setForeground(AppTheme.ON_SURFACE);
+        refreshBtn.setBackground(AppTheme.SURFACE_VARIANT);
+        refreshBtn.setBorderPainted(true);
+        refreshBtn.setFocusPainted(false);
+        refreshBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        refreshBtn.addActionListener(e -> {
+            prodSearchField.setText("");
+            for (JCheckBox cb : typeCheckboxes.values()) {
+                cb.setSelected(false);
+            }
+            updateTypeFilterButtonText();
+            prodDpFrom.setValue(LocalDate.now().withDayOfMonth(1));
+            prodDpTo.setValue(LocalDate.now());
+            prodCurrentPage = 1;
+            loadData();
+        });
+
+        // Export button
+        JButton exportBtn = new JButton("<html><font face='Segoe UI'>⬇</font>  Xuất Excel</html>");
+        exportBtn.setFont(AppTheme.FONT_LABEL);
+        exportBtn.setBackground(AppTheme.SURFACE_VARIANT);
+        exportBtn.setForeground(AppTheme.ON_SURFACE);
+        exportBtn.setBorderPainted(true);
+        exportBtn.setFocusPainted(false);
+        exportBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        exportBtn.addActionListener(e -> exportToExcel());
+
+        // Labels
+        JLabel searchLbl = makeLabel("Sản phẩm:");
+        JLabel typeLbl = makeLabel("Phân loại:");
+        JLabel fromLbl = makeLabel("Từ ngày:");
+        JLabel toLbl = makeLabel("Đến ngày:");
+
+        panel.add(searchLbl);
+        panel.add(searchWrapper);
+        panel.add(typeLbl);
+        panel.add(typeFilterBtn);
+        panel.add(fromLbl);
+        panel.add(prodDpFrom);
+        panel.add(toLbl);
+        panel.add(prodDpTo);
+        panel.add(refreshBtn);
+        panel.add(exportBtn);
+
+        return panel;
+    }
+
+    private JPanel buildProductTableSection() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(AppTheme.SURFACE_LOW);
+        panel.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+
+        String[] productCols = { "Sản phẩm", "Phân loại", "Mã HĐ", "Ngày bán", "Giá nhập", "Giá bán", "Số lượng", "Lợi nhuận lý thuyết", "Thao tác" };
+        productTableModel = new DefaultTableModel(productCols, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        };
+        productTable = new StyledTable(productTableModel);
+        productTable.setAutoCreateRowSorter(true);
+
+        // Badge Phân loại (col 1)
+        productTable.getColumnModel().getColumn(1).setCellRenderer((t, v, sel, foc, r, c) -> {
+            JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 7));
+            wrapper.setBackground(sel ? AppTheme.withAlpha(AppTheme.PRIMARY, 35) : AppTheme.SURFACE_LOW);
+            String val = v == null ? "" : v.toString();
+            if ("Tặng".equals(val)) {
+                wrapper.add(new StatusBadge("Tặng", new Color(254, 243, 199), new Color(217, 119, 6)));
+            } else {
+                wrapper.add(new StatusBadge("Bán", new Color(209, 250, 229), new Color(5, 150, 105)));
+            }
+            return wrapper;
+        });
+
+        // Mã HĐ column (col 2)
+        productTable.getColumnModel().getColumn(2).setCellRenderer((t, v, sel, foc, r, c) -> {
+            JLabel lbl = new JLabel(v == null ? "" : v.toString());
+            lbl.setFont(AppTheme.FONT_LABEL);
+            lbl.setForeground(AppTheme.PRIMARY);
+            lbl.setBorder(new EmptyBorder(0, 12, 0, 4));
+            lbl.setOpaque(true);
+            lbl.setBackground(sel ? AppTheme.withAlpha(AppTheme.PRIMARY, 35) : AppTheme.SURFACE_LOW);
+            return lbl;
+        });
+
+        // Action column (col 8)
+        productTable.getColumnModel().getColumn(8).setCellRenderer((t, v, sel, foc, r, c) -> {
+            JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 7));
+            p.setBackground(sel ? AppTheme.withAlpha(AppTheme.PRIMARY, 35) : AppTheme.SURFACE_LOW);
+            JButton vBtn = new JButton("👁");
+            JButton eBtn = new JButton("✏");
+            for (JButton b : new JButton[] { vBtn, eBtn }) {
+                b.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+                b.setForeground(AppTheme.ON_SURFACE_VAR);
+                b.setOpaque(false);
+                b.setBorderPainted(false);
+                b.setContentAreaFilled(false);
+                b.setFocusPainted(false);
+            }
+            p.add(vBtn);
+            p.add(eBtn);
+            return p;
+        });
+
+        // Column widths for products
+        int[] pWidths = { 220, 80, 80, 120, 100, 100, 70, 110, 80 };
+        for (int i = 0; i < pWidths.length; i++) {
+            productTable.getColumnModel().getColumn(i).setPreferredWidth(pWidths[i]);
+        }
+
+        // Product table actions listener
+        productTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int row = productTable.rowAtPoint(evt.getPoint());
+                int col = productTable.columnAtPoint(evt.getPoint());
+                if (row >= 0) {
+                    int modelRow = productTable.convertRowIndexToModel(row);
+                    String maHD = productTableModel.getValueAt(modelRow, 2).toString(); // "BH-{id}"
+                    try {
+                        int id = Integer.parseInt(maHD.replace("BH-", ""));
+                        if (col == 8) {
+                            int columnWidth = productTable.getColumnModel().getColumn(8).getWidth();
+                            int x = evt.getX() - productTable.getCellRect(row, 8, true).x;
+                            if (x < columnWidth / 2) {
+                                openViewDialog(id);
+                            } else {
+                                openEditDialog(id);
+                            }
+                        } else {
+                            if (evt.getClickCount() == 2) {
+                                openViewDialog(id);
+                            }
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+        });
+
+        prodPagination = new Pagination(page -> {
+            prodCurrentPage = page;
+            loadData();
+        });
+
+        panel.add(productTable.wrapInScrollPane(), BorderLayout.CENTER);
+        panel.add(prodPagination, BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private void updateTypeFilterButtonText() {
+        java.util.List<String> selected = new java.util.ArrayList<>();
+        for (JCheckBox cb : typeCheckboxes.values()) {
+            if (cb.isSelected()) {
+                selected.add(cb.getText());
+            }
+        }
+        if (selected.isEmpty()) {
+            typeFilterBtn.setText("Phân loại ↓");
+        } else if (selected.size() == typeCheckboxes.size()) {
+            typeFilterBtn.setText("Tất cả phân loại ↓");
+        } else {
+            typeFilterBtn.setText(selected.get(0) + " ↓");
+        }
     }
 
     private JPanel buildSmallCard(String icon, String label, JLabel valueLabel, Color color) {
@@ -360,116 +743,236 @@ public class SalesOrdersPanel extends JPanel {
         return lbl;
     }
 
-    // ===================================================================
-    // DATA LOADING
-    // ===================================================================
     public void loadData() {
+        final int activeTab = tabbedPane != null ? tabbedPane.getSelectedIndex() : 0;
         SwingWorker<Object[], Void> worker = new SwingWorker<>() {
-            // Dữ liệu thu thập trong background
             private java.util.List<Object[]> rows = new java.util.ArrayList<>();
             private int count = 0;
+            
+            // Tab 1 summaries
             private String rev = "...", orderCnt = "...", pend = "...", unpaidCust = "...";
+            // Tab 2 summaries
+            private String prodRev = "...", prodProfit = "...", prodQtySold = "...", prodQtyGifted = "...";
 
             @Override
             protected Object[] doInBackground() {
                 try {
                     Connection conn = DatabaseManager.getInstance().getConnection();
 
-                    String statusCond = "";
-                    Object selectedStatus = statusFilter.getSelectedItem();
-                    if (selectedStatus != null && !"Tất cả".equals(selectedStatus.toString())) {
-                        statusCond = " AND bh.trang_thai = '" + selectedStatus + "'";
-                    }
-
-                    String searchCond = "";
-                    String searchText = searchField.getText().trim();
-                    if (!searchText.isEmpty()) {
-                        searchCond = " AND (kh.ten LIKE '%" + searchText + "%'"
-                                + " OR CAST(bh.id AS CHAR) LIKE '%" + searchText + "%')";
-                    }
-
-                    String dateCond = "";
-                    if (dpFrom != null && dpFrom.getValue() != null) {
-                        dateCond += " AND bh.thoi_gian >= '" + dpFrom.getValue().toString() + " 00:00:00'";
-                    }
-                    if (dpTo != null && dpTo.getValue() != null) {
-                        dateCond += " AND bh.thoi_gian <= '" + dpTo.getValue().toString() + " 23:59:59'";
-                    }
-
-                    // Count total
-                    String countSql = "SELECT COUNT(*) FROM ban_hang bh"
-                            + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
-                            + " WHERE 1=1" + statusCond + searchCond + dateCond;
-                    try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(countSql)) {
-                        if (rs.next())
-                            count = rs.getInt(1);
-                    }
-
-                    // Load page data
-                    int offset = (currentPage - 1) * PAGE_SIZE;
-                    String sql = "SELECT bh.id, bh.thoi_gian, bh.ngay_lap,"
-                            + " IFNULL(kh.ten, 'Khách vãng lai') AS ten_khach,"
-                            + " IFNULL(nv.ten_nhan_vien, '---') AS ten_nv,"
-                            + " bh.tong_tien, bh.tien_da_thanh_toan, bh.tien_no, bh.trang_thai"
-                            + " FROM ban_hang bh"
-                            + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
-                            + " LEFT JOIN nhan_vien nv ON bh.id_nhan_vien = nv.id"
-                            + " WHERE 1=1" + statusCond + searchCond + dateCond
-                            + " ORDER BY bh.thoi_gian DESC LIMIT " + PAGE_SIZE + " OFFSET " + offset;
-
-                    try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
-                        while (rs.next()) {
-                            rows.add(new Object[] {
-                                    "BH-" + rs.getInt("id"),
-                                    rs.getTimestamp("thoi_gian") != null
-                                            ? new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(
-                                                    rs.getTimestamp("thoi_gian"))
-                                            : "",
-                                    rs.getDate("ngay_lap") != null
-                                            ? new java.text.SimpleDateFormat("dd/MM/yyyy").format(
-                                                    rs.getDate("ngay_lap"))
-                                            : "--",
-                                    rs.getString("ten_khach"),
-                                    rs.getString("ten_nv"),
-                                    formatVND(rs.getLong("tong_tien")),
-                                    formatVND(rs.getLong("tien_da_thanh_toan")),
-                                    formatVND(rs.getLong("tien_no")),
-                                    rs.getString("trang_thai"),
-                                    ""
-                            });
+                    if (activeTab == 1) {
+                        // === Tab 2 filters ===
+                        String searchCond = "";
+                        String searchText = prodSearchField != null ? prodSearchField.getText().trim() : "";
+                        if (!searchText.isEmpty()) {
+                            searchCond = " AND (kh.ten LIKE '%" + searchText + "%'"
+                                    + " OR CAST(bh.id AS CHAR) LIKE '%" + searchText + "%'"
+                                    + " OR sp.ten_san_pham LIKE '%" + searchText + "%')";
                         }
-                    }
 
-                    // Summary stats
-                    String statsDateCond = "";
-                    if (dpFrom != null && dpFrom.getValue() != null) {
-                        statsDateCond += " AND thoi_gian >= '" + dpFrom.getValue().toString() + " 00:00:00'";
-                    }
-                    if (dpTo != null && dpTo.getValue() != null) {
-                        statsDateCond += " AND thoi_gian <= '" + dpTo.getValue().toString() + " 23:59:59'";
-                    }
+                        String dateCond = "";
+                        if (prodDpFrom != null && prodDpFrom.getValue() != null) {
+                            dateCond += " AND bh.thoi_gian >= '" + prodDpFrom.getValue().toString() + " 00:00:00'";
+                        }
+                        if (prodDpTo != null && prodDpTo.getValue() != null) {
+                            dateCond += " AND bh.thoi_gian <= '" + prodDpTo.getValue().toString() + " 23:59:59'";
+                        }
 
-                    String revSql = "SELECT COALESCE(SUM(tong_tien),0) FROM ban_hang WHERE trang_thai='Hoàn thành'" + statsDateCond;
-                    String cntSql = "SELECT COALESCE(SUM(tien_da_thanh_toan),0) FROM ban_hang WHERE trang_thai='Hẹn'" + statsDateCond;
-                    String pendSql = "SELECT COUNT(*) FROM ban_hang WHERE trang_thai='Hẹn'" + statsDateCond;
-                    String unpaidCustSql = "SELECT COUNT(DISTINCT id_doi_tac) FROM ban_hang WHERE tien_no > 0 AND trang_thai = 'Hoàn thành'" + statsDateCond;
-                    try (Statement st = conn.createStatement()) {
-                        ResultSet rs = st.executeQuery(revSql);
-                        if (rs.next())
-                            rev = formatVND(rs.getLong(1));
-                        rs.close();
-                        rs = st.executeQuery(cntSql);
-                        if (rs.next())
-                            orderCnt = formatVND(rs.getLong(1));
-                        rs.close();
-                        rs = st.executeQuery(pendSql);
-                        if (rs.next())
-                            pend = String.valueOf(rs.getInt(1));
-                        rs.close();
-                        rs = st.executeQuery(unpaidCustSql);
-                        if (rs.next())
-                            unpaidCust = String.valueOf(rs.getInt(1));
-                        rs.close();
+                        String typeCond = "";
+                        java.util.List<Integer> selectedTypes = new java.util.ArrayList<>();
+                        if (typeCheckboxes.containsKey("Bán") && typeCheckboxes.get("Bán").isSelected()) {
+                            selectedTypes.add(0);
+                        }
+                        if (typeCheckboxes.containsKey("Tặng") && typeCheckboxes.get("Tặng").isSelected()) {
+                            selectedTypes.add(1);
+                        }
+                        if (!selectedTypes.isEmpty() && selectedTypes.size() < 2) {
+                            typeCond = " AND ct.is_gift = " + selectedTypes.get(0);
+                        }
+
+                        // Count total for products
+                        String countSql = "SELECT COUNT(*) FROM chi_tiet_ban_hang ct"
+                                + " JOIN ban_hang bh ON ct.id_ban_hang = bh.id"
+                                + " JOIN san_pham sp ON ct.id_san_pham = sp.id"
+                                + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
+                                + " WHERE 1=1" + searchCond + dateCond + typeCond;
+                        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(countSql)) {
+                            if (rs.next())
+                                count = rs.getInt(1);
+                        }
+
+                        // Load product page data
+                        int offset = (prodCurrentPage - 1) * PAGE_SIZE;
+                        String sql = "SELECT ct.id_ban_hang, ct.id_san_pham, ct.is_gift, ct.so_luong, "
+                                + " IF(ct.is_gift = 1, 0, ct.gia_ban) AS gia_ban, "
+                                + " sp.ten_san_pham, sp.gia_nhap_hien_tai AS gia_nhap, "
+                                + " bh.thoi_gian, "
+                                + " ((IF(ct.is_gift = 1, 0, ct.gia_ban) - sp.gia_nhap_hien_tai) * ct.so_luong) AS loi_nhuan "
+                                + " FROM chi_tiet_ban_hang ct"
+                                + " JOIN ban_hang bh ON ct.id_ban_hang = bh.id"
+                                + " JOIN san_pham sp ON ct.id_san_pham = sp.id"
+                                + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
+                                + " WHERE 1=1" + searchCond + dateCond + typeCond
+                                + " ORDER BY bh.thoi_gian DESC LIMIT " + PAGE_SIZE + " OFFSET " + offset;
+
+                        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+                            while (rs.next()) {
+                                String isGiftStr = rs.getInt("is_gift") == 1 ? "Tặng" : "Bán";
+                                rows.add(new Object[] {
+                                        rs.getString("ten_san_pham"),
+                                        isGiftStr,
+                                        "BH-" + rs.getInt("id_ban_hang"),
+                                        rs.getTimestamp("thoi_gian") != null
+                                                ? new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(
+                                                        rs.getTimestamp("thoi_gian"))
+                                                : "",
+                                        formatVND(rs.getLong("gia_nhap")),
+                                        formatVND(rs.getLong("gia_ban")),
+                                        rs.getInt("so_luong"),
+                                        formatVND(rs.getLong("loi_nhuan")),
+                                        ""
+                                });
+                            }
+                        }
+
+                        // Product summary cards stats (depends only on prodStatsDateCond)
+                        String prodStatsDateCond = "";
+                        if (prodDpFrom != null && prodDpFrom.getValue() != null) {
+                            prodStatsDateCond += " AND bh.thoi_gian >= '" + prodDpFrom.getValue().toString() + " 00:00:00'";
+                        }
+                        if (prodDpTo != null && prodDpTo.getValue() != null) {
+                            prodStatsDateCond += " AND bh.thoi_gian <= '" + prodDpTo.getValue().toString() + " 23:59:59'";
+                        }
+
+                        String prodStatsSql = "SELECT "
+                                + " COALESCE(SUM(IF(ct.is_gift = 0, ct.thanh_tien, 0)), 0) AS prod_revenue, "
+                                + " COALESCE(SUM((IF(ct.is_gift = 1, 0, ct.gia_ban) - sp.gia_nhap_hien_tai) * ct.so_luong), 0) AS prod_profit, "
+                                + " COALESCE(SUM(IF(ct.is_gift = 0, ct.so_luong, 0)), 0) AS prod_qty_sold, "
+                                + " COALESCE(SUM(IF(ct.is_gift = 1, ct.so_luong, 0)), 0) AS prod_qty_gifted "
+                                + " FROM chi_tiet_ban_hang ct"
+                                + " JOIN ban_hang bh ON ct.id_ban_hang = bh.id"
+                                + " JOIN san_pham sp ON ct.id_san_pham = sp.id"
+                                + " WHERE bh.trang_thai = 'Hoàn thành'" + prodStatsDateCond;
+
+                        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(prodStatsSql)) {
+                            if (rs.next()) {
+                                prodRev = formatVND(rs.getLong("prod_revenue"));
+                                prodProfit = formatVND(rs.getLong("prod_profit"));
+                                prodQtySold = String.valueOf(rs.getInt("prod_qty_sold"));
+                                prodQtyGifted = String.valueOf(rs.getInt("prod_qty_gifted"));
+                            }
+                        }
+
+                    } else {
+                        // === Tab 1 filters ===
+                        String statusCond = "";
+                        java.util.List<String> selectedStatuses = new java.util.ArrayList<>();
+                        if (statusCheckboxes != null) {
+                            for (java.util.Map.Entry<String, JCheckBox> entry : statusCheckboxes.entrySet()) {
+                                if (entry.getValue().isSelected()) {
+                                    selectedStatuses.add(entry.getKey());
+                                }
+                            }
+                        }
+                        if (!selectedStatuses.isEmpty() && selectedStatuses.size() < statusCheckboxes.size()) {
+                            StringBuilder sb = new StringBuilder(" AND bh.trang_thai IN (");
+                            for (int i = 0; i < selectedStatuses.size(); i++) {
+                                if (i > 0) sb.append(",");
+                                sb.append("'").append(selectedStatuses.get(i).replace("'", "''")).append("'");
+                            }
+                            sb.append(")");
+                            statusCond = sb.toString();
+                        }
+
+                        String searchCond = "";
+                        String searchText = searchField != null ? searchField.getText().trim() : "";
+                        if (!searchText.isEmpty()) {
+                            searchCond = " AND (kh.ten LIKE '%" + searchText + "%'"
+                                    + " OR CAST(bh.id AS CHAR) LIKE '%" + searchText + "%')";
+                        }
+
+                        String dateCond = "";
+                        if (dpFrom != null && dpFrom.getValue() != null) {
+                            dateCond += " AND bh.thoi_gian >= '" + dpFrom.getValue().toString() + " 00:00:00'";
+                        }
+                        if (dpTo != null && dpTo.getValue() != null) {
+                            dateCond += " AND bh.thoi_gian <= '" + dpTo.getValue().toString() + " 23:59:59'";
+                        }
+
+                        // Count total for invoices
+                        String countSql = "SELECT COUNT(*) FROM ban_hang bh"
+                                + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
+                                + " WHERE 1=1" + statusCond + searchCond + dateCond;
+                        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(countSql)) {
+                            if (rs.next())
+                                count = rs.getInt(1);
+                        }
+
+                        // Load invoice page data
+                        int offset = (currentPage - 1) * PAGE_SIZE;
+                        String sql = "SELECT bh.id, bh.thoi_gian, bh.ngay_lap,"
+                                + " IFNULL(kh.ten, 'Khách vãng lai') AS ten_khach,"
+                                + " IFNULL(nv.ten_nhan_vien, '---') AS ten_nv,"
+                                + " bh.tong_tien, bh.tien_da_thanh_toan, bh.tien_no, bh.trang_thai"
+                                + " FROM ban_hang bh"
+                                + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
+                                + " LEFT JOIN nhan_vien nv ON bh.id_nhan_vien = nv.id"
+                                + " WHERE 1=1" + statusCond + searchCond + dateCond
+                                + " ORDER BY bh.thoi_gian DESC LIMIT " + PAGE_SIZE + " OFFSET " + offset;
+
+                        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+                            while (rs.next()) {
+                                rows.add(new Object[] {
+                                        "BH-" + rs.getInt("id"),
+                                        rs.getTimestamp("thoi_gian") != null
+                                                ? new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(
+                                                        rs.getTimestamp("thoi_gian"))
+                                                : "",
+                                        rs.getDate("ngay_lap") != null
+                                                ? new java.text.SimpleDateFormat("dd/MM/yyyy").format(
+                                                        rs.getDate("ngay_lap"))
+                                                : "--",
+                                        rs.getString("ten_khach"),
+                                        rs.getString("ten_nv"),
+                                        formatVND(rs.getLong("tong_tien")),
+                                        formatVND(rs.getLong("tien_da_thanh_toan")),
+                                        formatVND(rs.getLong("tien_no")),
+                                        rs.getString("trang_thai"),
+                                        ""
+                                });
+                            }
+                        }
+
+                        // Invoice summary stats
+                        String statsDateCond = "";
+                        if (dpFrom != null && dpFrom.getValue() != null) {
+                            statsDateCond += " AND thoi_gian >= '" + dpFrom.getValue().toString() + " 00:00:00'";
+                        }
+                        if (dpTo != null && dpTo.getValue() != null) {
+                            statsDateCond += " AND thoi_gian <= '" + dpTo.getValue().toString() + " 23:59:59'";
+                        }
+
+                        String revSql = "SELECT COALESCE(SUM(tong_tien),0) FROM ban_hang WHERE trang_thai='Hoàn thành'" + statsDateCond;
+                        String cntSql = "SELECT COALESCE(SUM(tien_da_thanh_toan),0) FROM ban_hang WHERE trang_thai='Hẹn'" + statsDateCond;
+                        String pendSql = "SELECT COUNT(*) FROM ban_hang WHERE trang_thai='Hẹn'" + statsDateCond;
+                        String unpaidCustSql = "SELECT COUNT(*) FROM ban_hang WHERE tien_no > 0 AND trang_thai = 'Hoàn thành'" + statsDateCond;
+                        try (Statement st = conn.createStatement()) {
+                            ResultSet rs = st.executeQuery(revSql);
+                            if (rs.next())
+                                rev = formatVND(rs.getLong(1));
+                            rs.close();
+                            rs = st.executeQuery(cntSql);
+                            if (rs.next())
+                                orderCnt = formatVND(rs.getLong(1));
+                            rs.close();
+                            rs = st.executeQuery(pendSql);
+                            if (rs.next())
+                                pend = String.valueOf(rs.getInt(1));
+                            rs.close();
+                            rs = st.executeQuery(unpaidCustSql);
+                            if (rs.next())
+                                unpaidCust = String.valueOf(rs.getInt(1));
+                            rs.close();
+                        }
                     }
                 } catch (Exception e) {
                     System.err.println("Lỗi tải Sales Orders: " + e.getMessage());
@@ -480,16 +983,31 @@ public class SalesOrdersPanel extends JPanel {
 
             @Override
             protected void done() {
-                // Cập nhật toàn bộ UI trên EDT — tránh flickering và race condition
-                totalItems = count;
-                tableModel.setRowCount(0);
-                for (Object[] row : rows)
-                    tableModel.addRow(row);
-                pagination.update(totalItems, PAGE_SIZE, currentPage);
-                lblRevenue.setText(rev);
-                lblOrderCount.setText(orderCnt);
-                lblPending.setText(pend);
-                lblUnpaidCustomers.setText(unpaidCust);
+                if (activeTab == 1) {
+                    prodTotalItems = count;
+                    productTableModel.setRowCount(0);
+                    for (Object[] row : rows)
+                        productTableModel.addRow(row);
+                    if (prodPagination != null) {
+                        prodPagination.update(prodTotalItems, PAGE_SIZE, prodCurrentPage);
+                    }
+                    if (lblProdRevenue != null) lblProdRevenue.setText(prodRev);
+                    if (lblProdProfit != null) lblProdProfit.setText(prodProfit);
+                    if (lblProdQtySold != null) lblProdQtySold.setText(prodQtySold);
+                    if (lblProdQtyGifted != null) lblProdQtyGifted.setText(prodQtyGifted);
+                } else {
+                    totalItems = count;
+                    tableModel.setRowCount(0);
+                    for (Object[] row : rows)
+                        tableModel.addRow(row);
+                    if (pagination != null) {
+                        pagination.update(totalItems, PAGE_SIZE, currentPage);
+                    }
+                    if (lblRevenue != null) lblRevenue.setText(rev);
+                    if (lblOrderCount != null) lblOrderCount.setText(orderCnt);
+                    if (lblPending != null) lblPending.setText(pend);
+                    if (lblUnpaidCustomers != null) lblUnpaidCustomers.setText(unpaidCust);
+                }
             }
         };
         worker.execute();
@@ -697,26 +1215,29 @@ public class SalesOrdersPanel extends JPanel {
         w.execute();
     }
 
-    /**
-     * Xuất danh sách đơn bán hàng (CSV) – tương tự nhập hàng.
-     */
     private void exportToExcel() {
+        final int activeTab = tabbedPane != null ? tabbedPane.getSelectedIndex() : 0;
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Chọn nơi lưu danh sách hóa đơn xuất");
-        fileChooser.setSelectedFile(new File("danh_sach_hoa_don_xuat.csv"));
+        if (activeTab == 1) {
+            fileChooser.setDialogTitle("Chọn nơi lưu danh sách chi tiết sản phẩm bán");
+            fileChooser.setSelectedFile(new File("danh_sach_san_pham_ban.csv"));
+        } else {
+            fileChooser.setDialogTitle("Chọn nơi lưu danh sách hóa đơn xuất");
+            fileChooser.setSelectedFile(new File("danh_sach_hoa_don_xuat.csv"));
+        }
 
         int userSelection = fileChooser.showSaveDialog(this);
         if (userSelection != JFileChooser.APPROVE_OPTION) {
             return;
         }
 
-        File fileToSave = fileChooser.getSelectedFile();
-        String filePath = fileToSave.getAbsolutePath();
+        File targetFile = fileChooser.getSelectedFile();
+        String filePath = targetFile.getAbsolutePath();
         if (!filePath.toLowerCase().endsWith(".csv")) {
-            fileToSave = new File(filePath + ".csv");
+            targetFile = new File(filePath + ".csv");
         }
 
-        final File targetFile = fileToSave;
+        final File finalTargetFile = targetFile;
 
         SwingWorker<Void, Void> worker = new SwingWorker<>() {
             private boolean success = false;
@@ -728,16 +1249,35 @@ public class SalesOrdersPanel extends JPanel {
                     Connection conn = DatabaseManager.getInstance().getConnection();
 
                     String statusCond = "";
-                    Object selectedStatus = statusFilter.getSelectedItem();
-                    if (selectedStatus != null && !"Tất cả".equals(selectedStatus.toString())) {
-                        statusCond = " AND bh.trang_thai = '" + selectedStatus + "'";
+                    java.util.List<String> selectedStatuses = new java.util.ArrayList<>();
+                    if (statusCheckboxes != null) {
+                        for (java.util.Map.Entry<String, JCheckBox> entry : statusCheckboxes.entrySet()) {
+                            if (entry.getValue().isSelected()) {
+                                selectedStatuses.add(entry.getKey());
+                            }
+                        }
+                    }
+                    if (!selectedStatuses.isEmpty() && selectedStatuses.size() < statusCheckboxes.size()) {
+                        StringBuilder sb = new StringBuilder(" AND bh.trang_thai IN (");
+                        for (int i = 0; i < selectedStatuses.size(); i++) {
+                            if (i > 0) sb.append(",");
+                            sb.append("'").append(selectedStatuses.get(i).replace("'", "''")).append("'");
+                        }
+                        sb.append(")");
+                        statusCond = sb.toString();
                     }
 
                     String searchCond = "";
                     String searchText = searchField.getText().trim();
                     if (!searchText.isEmpty()) {
-                        searchCond = " AND (kh.ten LIKE '%" + searchText + "%'"
-                                + " OR CAST(bh.id AS CHAR) LIKE '%" + searchText + "%')";
+                        if (activeTab == 1) {
+                            searchCond = " AND (kh.ten LIKE '%" + searchText + "%'"
+                                    + " OR CAST(bh.id AS CHAR) LIKE '%" + searchText + "%'"
+                                    + " OR sp.ten_san_pham LIKE '%" + searchText + "%')";
+                        } else {
+                            searchCond = " AND (kh.ten LIKE '%" + searchText + "%'"
+                                    + " OR CAST(bh.id AS CHAR) LIKE '%" + searchText + "%')";
+                        }
                     }
 
                     String dateCond = "";
@@ -748,68 +1288,116 @@ public class SalesOrdersPanel extends JPanel {
                         dateCond += " AND bh.thoi_gian <= '" + dpTo.getValue().toString() + " 23:59:59'";
                     }
 
-                    String sql = "SELECT bh.id, bh.thoi_gian, bh.ngay_lap,"
-                            + " IFNULL(kh.ten, 'Khách vãng lai') AS ten_khach,"
-                            + " IFNULL(nv.ten_nhan_vien, '---') AS ten_nv,"
-                            + " bh.tong_tien, bh.tien_da_thanh_toan, bh.tien_no, bh.trang_thai"
-                            + " FROM ban_hang bh"
-                            + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
-                            + " LEFT JOIN nhan_vien nv ON bh.id_nhan_vien = nv.id"
-                            + " WHERE 1=1" + statusCond + searchCond + dateCond
-                            + " ORDER BY bh.thoi_gian DESC";
+                    if (activeTab == 1) {
+                        String sql = "SELECT ct.id_ban_hang, ct.is_gift, ct.so_luong, "
+                                + " IF(ct.is_gift = 1, 0, ct.gia_ban) AS gia_ban, "
+                                + " sp.ten_san_pham, sp.gia_nhap_hien_tai AS gia_nhap, "
+                                + " bh.thoi_gian, "
+                                + " ((IF(ct.is_gift = 1, 0, ct.gia_ban) - sp.gia_nhap_hien_tai) * ct.so_luong) AS loi_nhuan "
+                                + " FROM chi_tiet_ban_hang ct"
+                                + " JOIN ban_hang bh ON ct.id_ban_hang = bh.id"
+                                + " JOIN san_pham sp ON ct.id_san_pham = sp.id"
+                                + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
+                                + " WHERE 1=1" + statusCond + searchCond + dateCond
+                                + " ORDER BY bh.thoi_gian DESC";
 
-                    try (Statement s = conn.createStatement();
-                            ResultSet rs = s.executeQuery(sql);
-                            java.io.FileOutputStream fos = new java.io.FileOutputStream(targetFile);
-                            java.io.OutputStreamWriter osw = new java.io.OutputStreamWriter(fos,
-                                    java.nio.charset.StandardCharsets.UTF_8);
-                            java.io.BufferedWriter writer = new java.io.BufferedWriter(osw)) {
+                        try (Statement s = conn.createStatement();
+                                ResultSet rs = s.executeQuery(sql);
+                                java.io.FileOutputStream fos = new java.io.FileOutputStream(finalTargetFile);
+                                java.io.OutputStreamWriter osw = new java.io.OutputStreamWriter(fos,
+                                        java.nio.charset.StandardCharsets.UTF_8);
+                                java.io.BufferedWriter writer = new java.io.BufferedWriter(osw)) {
 
-                        // Ghi UTF-8 BOM để Excel hiển thị đúng tiếng Việt
-                        writer.write('\uFEFF');
-
-                        // Ghi dòng tiêu đề cột
-                        writer.write(
-                                "Mã HĐ,Ngày lập,Ngày lắp,Khách hàng,Nhân viên,Tổng tiền,Đặt cọc,Khách nợ,Trạng thái");
-                        writer.newLine();
-
-                        java.text.SimpleDateFormat datetimeFormat = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
-                        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("dd/MM/yyyy");
-
-                        while (rs.next()) {
-                            String maHD = "BH-" + rs.getInt("id");
-
-                            String ngayLap = "";
-                            Timestamp ts = rs.getTimestamp("thoi_gian");
-                            if (ts != null) {
-                                ngayLap = datetimeFormat.format(ts);
-                            }
-
-                            String ngayLapDat = "--";
-                            java.sql.Date dateLap = rs.getDate("ngay_lap");
-                            if (dateLap != null) {
-                                ngayLapDat = dateFormat.format(dateLap);
-                            }
-
-                            String khachHang = rs.getString("ten_khach");
-                            String nhanVien = rs.getString("ten_nv");
-                            long tongTien = rs.getLong("tong_tien");
-                            long datCoc = rs.getLong("tien_da_thanh_toan");
-                            long conNo = rs.getLong("tien_no");
-                            String trangThai = rs.getString("trang_thai");
-
-                            writer.write(escapeCsv(maHD) + ",");
-                            writer.write(escapeCsv(ngayLap) + ",");
-                            writer.write(escapeCsv(ngayLapDat) + ",");
-                            writer.write(escapeCsv(khachHang) + ",");
-                            writer.write(escapeCsv(nhanVien) + ",");
-                            writer.write(tongTien + ",");
-                            writer.write(datCoc + ",");
-                            writer.write(conNo + ",");
-                            writer.write(escapeCsv(trangThai));
+                            writer.write('\uFEFF');
+                            writer.write("Sản phẩm,Phân loại,Mã HĐ,Ngày bán,Giá nhập,Giá bán,Số lượng,Lợi nhuận lý thuyết");
                             writer.newLine();
+
+                            java.text.SimpleDateFormat datetimeFormat = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+
+                            while (rs.next()) {
+                                String tenSp = rs.getString("ten_san_pham");
+                                String loai = rs.getInt("is_gift") == 1 ? "Tặng" : "Bán";
+                                String maHD = "BH-" + rs.getInt("id_ban_hang");
+                                String ngayBan = "";
+                                Timestamp ts = rs.getTimestamp("thoi_gian");
+                                if (ts != null) {
+                                    ngayBan = datetimeFormat.format(ts);
+                                }
+                                long giaNhap = rs.getLong("gia_nhap");
+                                long giaBan = rs.getLong("gia_ban");
+                                int soLuong = rs.getInt("so_luong");
+                                long loiNhuan = rs.getLong("loi_nhuan");
+
+                                writer.write(escapeCsv(tenSp) + ",");
+                                writer.write(escapeCsv(loai) + ",");
+                                writer.write(escapeCsv(maHD) + ",");
+                                writer.write(escapeCsv(ngayBan) + ",");
+                                writer.write(giaNhap + ",");
+                                writer.write(giaBan + ",");
+                                writer.write(soLuong + ",");
+                                writer.write(loiNhuan + "");
+                                writer.newLine();
+                            }
+                            success = true;
                         }
-                        success = true;
+                    } else {
+                        String sql = "SELECT bh.id, bh.thoi_gian, bh.ngay_lap,"
+                                + " IFNULL(kh.ten, 'Khách vãng lai') AS ten_khach,"
+                                + " IFNULL(nv.ten_nhan_vien, '---') AS ten_nv,"
+                                + " bh.tong_tien, bh.tien_da_thanh_toan, bh.tien_no, bh.trang_thai"
+                                + " FROM ban_hang bh"
+                                + " LEFT JOIN doi_tac kh ON bh.id_doi_tac = kh.id"
+                                + " LEFT JOIN nhan_vien nv ON bh.id_nhan_vien = nv.id"
+                                + " WHERE 1=1" + statusCond + searchCond + dateCond
+                                + " ORDER BY bh.thoi_gian DESC";
+
+                        try (Statement s = conn.createStatement();
+                                ResultSet rs = s.executeQuery(sql);
+                                java.io.FileOutputStream fos = new java.io.FileOutputStream(finalTargetFile);
+                                java.io.OutputStreamWriter osw = new java.io.OutputStreamWriter(fos,
+                                        java.nio.charset.StandardCharsets.UTF_8);
+                                java.io.BufferedWriter writer = new java.io.BufferedWriter(osw)) {
+
+                            writer.write('\uFEFF');
+                            writer.write(
+                                    "Mã HĐ,Ngày lập,Ngày lắp,Khách hàng,Nhân viên,Tổng tiền,Đặt cọc,Khách nợ,Trạng thái");
+                            writer.newLine();
+
+                            java.text.SimpleDateFormat datetimeFormat = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+                            java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("dd/MM/yyyy");
+
+                            while (rs.next()) {
+                                String maHD = "BH-" + rs.getInt("id");
+                                String ngayLap = "";
+                                Timestamp ts = rs.getTimestamp("thoi_gian");
+                                if (ts != null) {
+                                    ngayLap = datetimeFormat.format(ts);
+                                }
+                                String ngayLapDat = "--";
+                                java.sql.Date dateLap = rs.getDate("ngay_lap");
+                                if (dateLap != null) {
+                                    ngayLapDat = dateFormat.format(dateLap);
+                                }
+                                String khachHang = rs.getString("ten_khach");
+                                String nhanVien = rs.getString("ten_nv");
+                                long tongTien = rs.getLong("tong_tien");
+                                long datCoc = rs.getLong("tien_da_thanh_toan");
+                                long conNo = rs.getLong("tien_no");
+                                String trangThai = rs.getString("trang_thai");
+
+                                writer.write(escapeCsv(maHD) + ",");
+                                writer.write(escapeCsv(ngayLap) + ",");
+                                writer.write(escapeCsv(ngayLapDat) + ",");
+                                writer.write(escapeCsv(khachHang) + ",");
+                                writer.write(escapeCsv(nhanVien) + ",");
+                                writer.write(tongTien + ",");
+                                writer.write(datCoc + ",");
+                                writer.write(conNo + ",");
+                                writer.write(escapeCsv(trangThai));
+                                writer.newLine();
+                            }
+                            success = true;
+                        }
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -822,7 +1410,7 @@ public class SalesOrdersPanel extends JPanel {
             protected void done() {
                 if (success) {
                     JOptionPane.showMessageDialog(SalesOrdersPanel.this,
-                            "Đã xuất dữ liệu hóa đơn bán hàng ra file Excel (CSV) thành công!",
+                            activeTab == 1 ? "Đã xuất danh sách chi tiết sản phẩm bán ra file CSV thành công!" : "Đã xuất dữ liệu hóa đơn bán hàng ra file Excel (CSV) thành công!",
                             "Xuất Excel thành công",
                             JOptionPane.INFORMATION_MESSAGE);
                 } else {
@@ -848,4 +1436,21 @@ public class SalesOrdersPanel extends JPanel {
         return result;
     }
 
+    private void updateStatusFilterButtonText() {
+        java.util.List<String> selected = new java.util.ArrayList<>();
+        for (JCheckBox cb : statusCheckboxes.values()) {
+            if (cb.isSelected()) {
+                selected.add(cb.getText());
+            }
+        }
+        if (selected.isEmpty()) {
+            statusFilterBtn.setText("Trạng thái kho ↓");
+        } else if (selected.size() == statusCheckboxes.size()) {
+            statusFilterBtn.setText("Tất cả trạng thái ↓");
+        } else if (selected.size() == 1) {
+            statusFilterBtn.setText(selected.get(0) + " ↓");
+        } else {
+            statusFilterBtn.setText(selected.size() + " trạng thái đã chọn ↓");
+        }
+    }
 }

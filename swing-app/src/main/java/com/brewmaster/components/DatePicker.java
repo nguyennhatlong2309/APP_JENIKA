@@ -70,15 +70,28 @@ public class DatePicker extends JPanel {
         });
 
         tfDate.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { checkClear(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { checkClear(); }
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { checkClear(); }
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { checkChange(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { checkChange(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { checkChange(); }
 
-            private void checkClear() {
-                if (tfDate.getText().isEmpty()) {
+            private void checkChange() {
+                String text = tfDate.getText().trim();
+                if (text.isEmpty()) {
                     if (selectedDate != null) {
                         selectedDate = null;
                         fireActionEvent();
+                    }
+                    return;
+                }
+                if (text.length() == 10) {
+                    try {
+                        LocalDate date = LocalDate.parse(text, formatter);
+                        if (!date.equals(selectedDate)) {
+                            selectedDate = date;
+                            fireActionEvent();
+                        }
+                    } catch (DateTimeParseException ignored) {
+                        // Bỏ qua lỗi định dạng khi đang gõ dở
                     }
                 }
             }
@@ -141,18 +154,11 @@ public class DatePicker extends JPanel {
     private void showPopup() {
         displayDate = (selectedDate != null) ? selectedDate : LocalDate.now();
         popup.removeAll();
-        popup.add(buildCalendarPanel());
+        popup.add(buildCalendarPanelInline(popup));
         popup.show(tfDate, 0, tfDate.getHeight());
     }
 
-    private void refreshPopup() {
-        popup.setVisible(false);
-        popup.removeAll();
-        popup.add(buildCalendarPanel());
-        popup.show(tfDate, 0, tfDate.getHeight());
-    }
-
-    private JPanel buildCalendarPanel() {
+    private JPanel buildCalendarPanelInline(JPopupMenu popup) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(AppTheme.SURFACE_LOW);
         panel.setPreferredSize(new Dimension(250, 240));
@@ -170,10 +176,6 @@ public class DatePicker extends JPanel {
         btnPrev.setBorderPainted(false);
         btnPrev.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnPrev.setForeground(AppTheme.ON_SURFACE);
-        btnPrev.addActionListener(e -> {
-            displayDate = displayDate.minusMonths(1);
-            refreshPopup();
-        });
 
         JButton btnNext = new JButton("▶");
         btnNext.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -182,92 +184,292 @@ public class DatePicker extends JPanel {
         btnNext.setBorderPainted(false);
         btnNext.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnNext.setForeground(AppTheme.ON_SURFACE);
-        btnNext.addActionListener(e -> {
-            displayDate = displayDate.plusMonths(1);
-            refreshPopup();
-        });
 
-        String monthYearText = "Tháng " + displayDate.getMonthValue() + " / " + displayDate.getYear();
-        JLabel lblMonthYear = new JLabel(monthYearText, SwingConstants.CENTER);
+        JLabel lblMonthYear = new JLabel("", SwingConstants.CENTER);
         lblMonthYear.setFont(AppTheme.FONT_TITLE_SM);
         lblMonthYear.setForeground(AppTheme.ON_SURFACE);
+
+        JPanel grid = new JPanel(new GridLayout(7, 7, 2, 2));
+        grid.setOpaque(false);
+
+        Runnable refreshGrid = new Runnable() {
+            @Override
+            public void run() {
+                grid.removeAll();
+                lblMonthYear.setText("Tháng " + displayDate.getMonthValue() + " / " + displayDate.getYear());
+
+                // Header các thứ
+                String[] dayHeaders = { "T2", "T3", "T4", "T5", "T6", "T7", "CN" };
+                for (String dh : dayHeaders) {
+                    JLabel lbl = new JLabel(dh, SwingConstants.CENTER);
+                    lbl.setFont(AppTheme.FONT_LABEL);
+                    lbl.setForeground(AppTheme.ON_SURFACE_VAR);
+                    grid.add(lbl);
+                }
+
+                // Tính toán các ngày trong tháng
+                LocalDate firstOfMonth = displayDate.withDayOfMonth(1);
+                int startOffset = firstOfMonth.getDayOfWeek().getValue() - 1; // 0=T2, 6=CN
+                int daysInMonth = displayDate.lengthOfMonth();
+
+                LocalDate prevMonth = displayDate.minusMonths(1);
+                int daysInPrevMonth = prevMonth.lengthOfMonth();
+
+                LocalDate today = LocalDate.now();
+
+                for (int i = 0; i < 42; i++) {
+                    LocalDate cellDate;
+                    boolean isCurrentMonth = true;
+
+                    if (i < startOffset) {
+                        int day = daysInPrevMonth - startOffset + i + 1;
+                        cellDate = prevMonth.withDayOfMonth(day);
+                        isCurrentMonth = false;
+                    } else if (i < startOffset + daysInMonth) {
+                        int day = i - startOffset + 1;
+                        cellDate = displayDate.withDayOfMonth(day);
+                    } else {
+                        int day = i - startOffset - daysInMonth + 1;
+                        cellDate = displayDate.plusMonths(1).withDayOfMonth(day);
+                        isCurrentMonth = false;
+                    }
+
+                    JButton btnDay = new JButton(String.valueOf(cellDate.getDayOfMonth()));
+                    btnDay.setFont(AppTheme.FONT_BODY_SM);
+                    btnDay.setFocusPainted(false);
+                    btnDay.setMargin(new Insets(2, 2, 2, 2));
+                    btnDay.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    btnDay.setBorderPainted(false);
+
+                    // Styling ngày đặc biệt dùng cơ chế FlatLaf.style đồng bộ và tối ưu
+                    if (cellDate.equals(selectedDate)) {
+                        btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.PRIMARY) + "; foreground: " + AppTheme.toHex(AppTheme.ON_PRIMARY) + "; hoverBackground: " + AppTheme.toHex(AppTheme.PRIMARY_DARK) + "; focusWidth: 0;");
+                    } else if (cellDate.equals(today)) {
+                        btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.SECONDARY_CONT) + "; foreground: " + AppTheme.toHex(AppTheme.SECONDARY) + "; hoverBackground: " + AppTheme.toHex(AppTheme.SURFACE_HIGHEST) + "; focusWidth: 0;");
+                        btnDay.setBorder(BorderFactory.createLineBorder(AppTheme.SECONDARY, 1));
+                        btnDay.setBorderPainted(true);
+                    } else {
+                        if (isCurrentMonth) {
+                            btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.SURFACE_LOW) + "; foreground: " + AppTheme.toHex(AppTheme.ON_SURFACE) + "; hoverBackground: " + AppTheme.toHex(AppTheme.SURFACE_HIGHEST) + "; focusWidth: 0;");
+                        } else {
+                            btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.SURFACE_LOW) + "; foreground: " + AppTheme.toHex(AppTheme.OUTLINE) + "; hoverBackground: " + AppTheme.toHex(AppTheme.SURFACE_HIGHEST) + "; focusWidth: 0;");
+                        }
+                    }
+
+                    btnDay.addActionListener(e -> {
+                        setValue(cellDate);
+                        popup.setVisible(false);
+                        fireActionEvent();
+                    });
+
+                    grid.add(btnDay);
+                }
+                grid.revalidate();
+                grid.repaint();
+            }
+        };
+
+        btnPrev.addActionListener(e -> {
+            displayDate = displayDate.minusMonths(1);
+            refreshGrid.run();
+        });
+
+        btnNext.addActionListener(e -> {
+            displayDate = displayDate.plusMonths(1);
+            refreshGrid.run();
+        });
+
+        refreshGrid.run();
 
         header.add(btnPrev, BorderLayout.WEST);
         header.add(lblMonthYear, BorderLayout.CENTER);
         header.add(btnNext, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
+        panel.add(grid, BorderLayout.CENTER);
+        return panel;
+    }
 
-        // Grid chứa 7 ngày trong tuần và các ngày trong tháng
-        JPanel grid = new JPanel(new GridLayout(7, 7, 2, 2));
-        grid.setOpaque(false);
+    public static void setupDatePicker(JTextField tf, boolean includeTime) {
+        JButton btnCalendar = new JButton("📅");
+        btnCalendar.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+        btnCalendar.setBorder(new EmptyBorder(0, 6, 0, 6));
+        btnCalendar.setFocusPainted(false);
+        btnCalendar.setContentAreaFilled(false);
+        btnCalendar.setBorderPainted(false);
+        btnCalendar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // Header các thứ
-        String[] dayHeaders = { "T2", "T3", "T4", "T5", "T6", "T7", "CN" };
-        for (String dh : dayHeaders) {
-            JLabel lbl = new JLabel(dh, SwingConstants.CENTER);
-            lbl.setFont(AppTheme.FONT_LABEL);
-            lbl.setForeground(AppTheme.ON_SURFACE_VAR);
-            grid.add(lbl);
-        }
+        JPanel btnWrapper = new JPanel(new BorderLayout());
+        btnWrapper.setOpaque(false);
+        btnWrapper.add(btnCalendar, BorderLayout.CENTER);
+        tf.putClientProperty("JTextField.trailingComponent", btnWrapper);
 
-        // Tính toán các ngày trong tháng
-        LocalDate firstOfMonth = displayDate.withDayOfMonth(1);
-        int startOffset = firstOfMonth.getDayOfWeek().getValue() - 1; // 0=T2, 6=CN
-        int daysInMonth = displayDate.lengthOfMonth();
+        JPopupMenu popup = new JPopupMenu();
+        popup.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE, 1));
 
-        LocalDate prevMonth = displayDate.minusMonths(1);
-        int daysInPrevMonth = prevMonth.lengthOfMonth();
-
-        LocalDate today = LocalDate.now();
-
-        for (int i = 0; i < 42; i++) {
-            LocalDate cellDate;
-            boolean isCurrentMonth = true;
-
-            if (i < startOffset) {
-                int day = daysInPrevMonth - startOffset + i + 1;
-                cellDate = prevMonth.withDayOfMonth(day);
-                isCurrentMonth = false;
-            } else if (i < startOffset + daysInMonth) {
-                int day = i - startOffset + 1;
-                cellDate = displayDate.withDayOfMonth(day);
-            } else {
-                int day = i - startOffset - daysInMonth + 1;
-                cellDate = displayDate.plusMonths(1).withDayOfMonth(day);
-                isCurrentMonth = false;
+        btnCalendar.addActionListener(e -> {
+            if (!tf.isEditable() || !tf.isEnabled()) {
+                return;
             }
-
-            JButton btnDay = new JButton(String.valueOf(cellDate.getDayOfMonth()));
-            btnDay.setFont(AppTheme.FONT_BODY_SM);
-            btnDay.setFocusPainted(false);
-            btnDay.setMargin(new Insets(2, 2, 2, 2));
-            btnDay.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            btnDay.setBorderPainted(false);
-
-            // Styling ngày đặc biệt dùng cơ chế FlatLaf.style đồng bộ và tối ưu
-            if (cellDate.equals(selectedDate)) {
-                btnDay.putClientProperty("FlatLaf.style", "background: #f2be8c; foreground: #482904; hoverBackground: #d4a373; focusWidth: 0;");
-            } else if (cellDate.equals(today)) {
-                btnDay.putClientProperty("FlatLaf.style", "background: #144d73; foreground: #9bcbf8; hoverBackground: #353534; focusWidth: 0;");
-                btnDay.setBorder(BorderFactory.createLineBorder(AppTheme.SECONDARY, 1));
-                btnDay.setBorderPainted(true);
+            String text = tf.getText().trim();
+            LocalDate initialDate = LocalDate.now();
+            String timePart = includeTime ? " 12:00" : "";
+            
+            if (!text.isEmpty()) {
+                try {
+                    if (includeTime) {
+                        String[] parts = text.split(" ");
+                        initialDate = LocalDate.parse(parts[0], DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                        if (parts.length > 1) {
+                            timePart = " " + parts[1];
+                        }
+                    } else {
+                        initialDate = LocalDate.parse(text, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                    }
+                } catch (Exception ex) {
+                    initialDate = LocalDate.now();
+                }
             } else {
-                if (isCurrentMonth) {
-                    btnDay.putClientProperty("FlatLaf.style", "background: #1c1b1b; foreground: #e5e2e1; hoverBackground: #353534; focusWidth: 0;");
-                } else {
-                    btnDay.putClientProperty("FlatLaf.style", "background: #1c1b1b; foreground: #666666; hoverBackground: #353534; focusWidth: 0;");
+                if (includeTime) {
+                    timePart = " " + java.time.LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
                 }
             }
 
-            btnDay.addActionListener(e -> {
-                setValue(cellDate);
-                popup.setVisible(false);
-                fireActionEvent();
-            });
+            final String finalTimePart = timePart;
+            
+            JPanel calPanel = buildCalendarPanelForTextField(tf, initialDate, finalTimePart, includeTime, popup);
+            popup.removeAll();
+            popup.add(calPanel);
+            popup.show(tf, 0, tf.getHeight());
+        });
+    }
 
-            grid.add(btnDay);
-        }
+    private static JPanel buildCalendarPanelForTextField(JTextField tf, LocalDate initialDate, String finalTimePart, boolean includeTime, JPopupMenu popup) {
+        final LocalDate[] displayDateHolder = new LocalDate[] { initialDate };
+        
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(AppTheme.SURFACE_LOW);
+        panel.setPreferredSize(new Dimension(250, 240));
+        panel.setBorder(new EmptyBorder(8, 8, 8, 8));
 
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(0, 0, 8, 0));
+
+        JButton btnPrev = new JButton("◀");
+        btnPrev.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        btnPrev.setFocusPainted(false);
+        btnPrev.setContentAreaFilled(false);
+        btnPrev.setBorderPainted(false);
+        btnPrev.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnPrev.setForeground(AppTheme.ON_SURFACE);
+
+        JButton btnNext = new JButton("▶");
+        btnNext.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        btnNext.setFocusPainted(false);
+        btnNext.setContentAreaFilled(false);
+        btnNext.setBorderPainted(false);
+        btnNext.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnNext.setForeground(AppTheme.ON_SURFACE);
+
+        JLabel lblMonthYear = new JLabel("", SwingConstants.CENTER);
+        lblMonthYear.setFont(AppTheme.FONT_TITLE_SM);
+        lblMonthYear.setForeground(AppTheme.ON_SURFACE);
+
+        JPanel grid = new JPanel(new GridLayout(7, 7, 2, 2));
+        grid.setOpaque(false);
+
+        Runnable refreshGrid = new Runnable() {
+            @Override
+            public void run() {
+                grid.removeAll();
+                LocalDate displayDate = displayDateHolder[0];
+                lblMonthYear.setText("Tháng " + displayDate.getMonthValue() + " / " + displayDate.getYear());
+
+                String[] dayHeaders = { "T2", "T3", "T4", "T5", "T6", "T7", "CN" };
+                for (String dh : dayHeaders) {
+                    JLabel lbl = new JLabel(dh, SwingConstants.CENTER);
+                    lbl.setFont(AppTheme.FONT_LABEL);
+                    lbl.setForeground(AppTheme.ON_SURFACE_VAR);
+                    grid.add(lbl);
+                }
+
+                LocalDate firstOfMonth = displayDate.withDayOfMonth(1);
+                int startOffset = firstOfMonth.getDayOfWeek().getValue() - 1;
+                int daysInMonth = displayDate.lengthOfMonth();
+
+                LocalDate prevMonth = displayDate.minusMonths(1);
+                int daysInPrevMonth = prevMonth.lengthOfMonth();
+
+                LocalDate today = LocalDate.now();
+
+                for (int i = 0; i < 42; i++) {
+                    LocalDate cellDate;
+                    boolean isCurrentMonth = true;
+
+                    if (i < startOffset) {
+                        int day = daysInPrevMonth - startOffset + i + 1;
+                        cellDate = prevMonth.withDayOfMonth(day);
+                        isCurrentMonth = false;
+                    } else if (i < startOffset + daysInMonth) {
+                        int day = i - startOffset + 1;
+                        cellDate = displayDate.withDayOfMonth(day);
+                    } else {
+                        int day = i - startOffset - daysInMonth + 1;
+                        cellDate = displayDate.plusMonths(1).withDayOfMonth(day);
+                        isCurrentMonth = false;
+                    }
+
+                    JButton btnDay = new JButton(String.valueOf(cellDate.getDayOfMonth()));
+                    btnDay.setFont(AppTheme.FONT_BODY_SM);
+                    btnDay.setFocusPainted(false);
+                    btnDay.setMargin(new Insets(2, 2, 2, 2));
+                    btnDay.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    btnDay.setBorderPainted(false);
+
+                    if (cellDate.equals(initialDate)) {
+                        btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.PRIMARY) + "; foreground: " + AppTheme.toHex(AppTheme.ON_PRIMARY) + "; hoverBackground: " + AppTheme.toHex(AppTheme.PRIMARY_DARK) + "; focusWidth: 0;");
+                    } else if (cellDate.equals(today)) {
+                        btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.SECONDARY_CONT) + "; foreground: " + AppTheme.toHex(AppTheme.SECONDARY) + "; hoverBackground: " + AppTheme.toHex(AppTheme.SURFACE_HIGHEST) + "; focusWidth: 0;");
+                        btnDay.setBorder(BorderFactory.createLineBorder(AppTheme.SECONDARY, 1));
+                        btnDay.setBorderPainted(true);
+                    } else {
+                        if (isCurrentMonth) {
+                            btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.SURFACE_LOW) + "; foreground: " + AppTheme.toHex(AppTheme.ON_SURFACE) + "; hoverBackground: " + AppTheme.toHex(AppTheme.SURFACE_HIGHEST) + "; focusWidth: 0;");
+                        } else {
+                            btnDay.putClientProperty("FlatLaf.style", "background: " + AppTheme.toHex(AppTheme.SURFACE_LOW) + "; foreground: " + AppTheme.toHex(AppTheme.OUTLINE) + "; hoverBackground: " + AppTheme.toHex(AppTheme.SURFACE_HIGHEST) + "; focusWidth: 0;");
+                        }
+                    }
+
+                    btnDay.addActionListener(e -> {
+                        String formattedDate = cellDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                        tf.setText(formattedDate + finalTimePart);
+                        popup.setVisible(false);
+                    });
+
+                    grid.add(btnDay);
+                }
+                grid.revalidate();
+                grid.repaint();
+            }
+        };
+
+        btnPrev.addActionListener(e -> {
+            displayDateHolder[0] = displayDateHolder[0].minusMonths(1);
+            refreshGrid.run();
+        });
+
+        btnNext.addActionListener(e -> {
+            displayDateHolder[0] = displayDateHolder[0].plusMonths(1);
+            refreshGrid.run();
+        });
+
+        refreshGrid.run();
+
+        header.add(btnPrev, BorderLayout.WEST);
+        header.add(lblMonthYear, BorderLayout.CENTER);
+        header.add(btnNext, BorderLayout.EAST);
+        
+        panel.add(header, BorderLayout.NORTH);
         panel.add(grid, BorderLayout.CENTER);
         return panel;
     }

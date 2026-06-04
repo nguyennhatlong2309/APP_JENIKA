@@ -30,6 +30,13 @@ public class InventoryPanel extends JPanel {
     private JTextField searchField;
     private JComboBox<String> categoryFilter;
 
+    // Group filter fields
+    private JButton groupFilterBtn;
+    private JPanel groupCheckBoxPanel;
+    private JPopupMenu groupMenu;
+    private JTextField groupSearchField;
+    private final java.util.Map<Integer, JCheckBox> groupCheckboxes = new java.util.LinkedHashMap<>();
+
     // Status filter menu checkboxes
     private JButton statusFilterBtn;
     private JCheckBoxMenuItem menuConHang;
@@ -38,6 +45,14 @@ public class InventoryPanel extends JPanel {
 
     private JLabel lblTotalItems, lblLowStock, lblStockValue;
 
+    // JTabbedPane và các trường cho tab hàng hóa đã ẩn / xóa
+    private JTabbedPane tabs;
+    private int deletedCurrentPage = 1, deletedTotalItems = 0;
+    private DefaultTableModel deletedTableModel;
+    private StyledTable deletedTable;
+    private Pagination deletedPagination;
+    private JTextField deletedSearchField;
+
     // Lưu reference để dùng lại
     private JButton addBtn;
 
@@ -45,6 +60,7 @@ public class InventoryPanel extends JPanel {
         setBackground(AppTheme.BACKGROUND);
         setLayout(new BorderLayout());
         buildUI();
+        loadGroups();
     }
 
     private void buildUI() {
@@ -79,6 +95,29 @@ public class InventoryPanel extends JPanel {
         header.add(titles, BorderLayout.WEST);
         header.add(addBtn, BorderLayout.EAST);
 
+        // ---- JTabbedPane ----
+        tabs = new JTabbedPane();
+        tabs.setFont(AppTheme.FONT_LABEL);
+        tabs.setBackground(AppTheme.SURFACE_LOW);
+        tabs.setForeground(AppTheme.ON_SURFACE_VAR);
+
+        tabs.add("", buildActiveProductsTab());
+        tabs.setTabComponentAt(0, buildTabHeader("📦", "Hàng hóa đang kinh doanh"));
+
+        tabs.add("", buildDeletedProductsTab());
+        tabs.setTabComponentAt(1, buildTabHeader("🗑", "Hàng hóa đã ẩn / xóa"));
+
+        content.add(header, BorderLayout.NORTH);
+        content.add(tabs, BorderLayout.CENTER);
+
+        add(content, BorderLayout.CENTER);
+    }
+
+    private JPanel buildActiveProductsTab() {
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
+        panel.setBackground(AppTheme.BACKGROUND);
+        panel.setBorder(new EmptyBorder(12, 0, 0, 0));
+
         // Summary cards
         lblTotalItems = makeValueLabel("...");
         lblLowStock = makeValueLabel("...");
@@ -96,21 +135,15 @@ public class InventoryPanel extends JPanel {
         // Table
         JPanel tableSection = buildTableSection();
 
-        JPanel main = new JPanel(new BorderLayout(0, 12));
-        main.setOpaque(false);
-
         JPanel topPanel = new JPanel(new BorderLayout(0, 12));
         topPanel.setOpaque(false);
         topPanel.add(statsRow, BorderLayout.NORTH);
         topPanel.add(filters, BorderLayout.CENTER);
 
-        main.add(topPanel, BorderLayout.NORTH);
-        main.add(tableSection, BorderLayout.CENTER);
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(tableSection, BorderLayout.CENTER);
 
-        content.add(header, BorderLayout.NORTH);
-        content.add(main, BorderLayout.CENTER);
-
-        add(content, BorderLayout.CENTER);
+        return panel;
     }
 
     private JPanel buildStatCard(String icon, String label, JLabel valueLabel, Color color, String hint) {
@@ -201,7 +234,7 @@ public class InventoryPanel extends JPanel {
     }
 
     private JPanel buildFilters() {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel p = new JPanel(new WrapLayout(FlowLayout.LEFT, 10, 5));
         p.setBackground(AppTheme.withAlpha(AppTheme.SURFACE_LOW, 200));
         p.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
@@ -223,6 +256,77 @@ public class InventoryPanel extends JPanel {
         categoryFilter.addActionListener(e -> {
             currentPage = 1;
             loadData();
+        });
+
+        // Dropdown button for group filter with scrollable JPopupMenu containing JCheckBoxes and Search Field
+        groupFilterBtn = new JButton("Nhóm sản phẩm ↓");
+        groupFilterBtn.setFont(AppTheme.FONT_BODY_MD);
+        groupFilterBtn.setPreferredSize(new Dimension(170, 32));
+        groupFilterBtn.setBackground(AppTheme.SURFACE_LOW);
+        groupFilterBtn.setForeground(AppTheme.ON_SURFACE);
+        groupFilterBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)));
+        groupFilterBtn.setFocusPainted(false);
+        groupFilterBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        groupFilterBtn.setHorizontalAlignment(SwingConstants.LEFT);
+
+        groupMenu = new JPopupMenu();
+        groupMenu.setBackground(AppTheme.SURFACE_LOW);
+        groupMenu.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+        groupMenu.setLayout(new BorderLayout());
+
+        JPanel popupContent = new JPanel(new BorderLayout(0, 6));
+        popupContent.setBackground(AppTheme.SURFACE_LOW);
+        popupContent.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        groupSearchField = new JTextField();
+        groupSearchField.setFont(AppTheme.FONT_BODY_MD);
+        groupSearchField.putClientProperty("JTextField.placeholderText", " Tìm nhanh nhóm...");
+        groupSearchField.setPreferredSize(new Dimension(280, 32));
+        groupSearchField.setBackground(AppTheme.SURFACE_MED);
+        groupSearchField.setForeground(AppTheme.ON_SURFACE);
+        groupSearchField.setCaretColor(AppTheme.ON_SURFACE);
+        groupSearchField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+
+        groupCheckBoxPanel = new JPanel();
+        groupCheckBoxPanel.setLayout(new BoxLayout(groupCheckBoxPanel, BoxLayout.Y_AXIS));
+        groupCheckBoxPanel.setBackground(AppTheme.SURFACE_LOW);
+
+        JScrollPane scrollPane = new JScrollPane(groupCheckBoxPanel);
+        scrollPane.setPreferredSize(new Dimension(280, 320));
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(12);
+
+        popupContent.add(groupSearchField, BorderLayout.NORTH);
+        popupContent.add(scrollPane, BorderLayout.CENTER);
+        groupMenu.add(popupContent);
+
+        // Document Listener for filtering groups
+        groupSearchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+
+            private void filter() {
+                String text = groupSearchField.getText().trim().toLowerCase();
+                groupCheckBoxPanel.removeAll();
+                for (JCheckBox cb : groupCheckboxes.values()) {
+                    if (text.isEmpty() || cb.getText().toLowerCase().contains(text)) {
+                        groupCheckBoxPanel.add(cb);
+                    }
+                }
+                scrollPane.getVerticalScrollBar().setValue(0);
+                groupCheckBoxPanel.revalidate();
+                groupCheckBoxPanel.repaint();
+            }
+        });
+
+        groupFilterBtn.addActionListener(e -> {
+            groupMenu.show(groupFilterBtn, 0, groupFilterBtn.getHeight());
+            groupSearchField.requestFocusInWindow();
         });
 
         // Dropdown button for status filter with JCheckBoxMenuItems
@@ -275,7 +379,14 @@ public class InventoryPanel extends JPanel {
             menuConHang.setSelected(false);
             menuCanhBao.setSelected(false);
             menuHetHang.setSelected(false);
+            if (groupSearchField != null) {
+                groupSearchField.setText("");
+            }
+            for (JCheckBox cb : groupCheckboxes.values()) {
+                cb.setSelected(false);
+            }
             updateStatusFilterButtonText();
+            updateGroupFilterButtonText();
             currentPage = 1;
             loadData();
         });
@@ -290,6 +401,7 @@ public class InventoryPanel extends JPanel {
 
         p.add(searchField);
         p.add(categoryFilter);
+        p.add(groupFilterBtn);
         p.add(statusFilterBtn);
         p.add(refreshBtn);
         p.add(exportBtn);
@@ -395,12 +507,12 @@ public class InventoryPanel extends JPanel {
         dlg.setVisible(true);
     }
 
-    /** Xóa sản phẩm sau khi xác nhận */
+    /** Ẩn/xóa sản phẩm sau khi xác nhận (cập nhật cột bi_xoa = 1) */
     private void deleteProduct(String idStr) {
         int confirm = JOptionPane.showConfirmDialog(
                 this,
-                "Bạn có chắc muốn xóa sản phẩm ID '" + idStr + "' không?\nHành động này không thể hoàn tác.",
-                "Xác nhận xóa",
+                "Bạn có chắc muốn ẩn sản phẩm ID '" + idStr + "' không?",
+                "Xác nhận ẩn",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
         if (confirm != JOptionPane.YES_OPTION)
@@ -408,13 +520,12 @@ public class InventoryPanel extends JPanel {
 
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            // Bảng cfe_di_rom dùng id (int) làm khóa chính cho san_pham
-            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM san_pham WHERE id = ?")) {
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE san_pham SET bi_xoa = 1 WHERE id = ?")) {
                 ps.setInt(1, Integer.parseInt(idStr));
                 int affected = ps.executeUpdate();
                 if (affected > 0) {
                     JOptionPane.showMessageDialog(this,
-                            "Đã xóa sản phẩm ID '" + idStr + "' thành công.",
+                            "Đã ẩn sản phẩm ID '" + idStr + "' thành công.",
                             "Thành công", JOptionPane.INFORMATION_MESSAGE);
                     loadData();
                 }
@@ -422,7 +533,7 @@ public class InventoryPanel extends JPanel {
         } catch (Exception ex) {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this,
-                    "Lỗi khi xóa: " + ex.getMessage(),
+                    "Lỗi khi ẩn: " + ex.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -434,7 +545,7 @@ public class InventoryPanel extends JPanel {
         return l;
     }
 
-    public void loadData() {
+    public void loadActiveData() {
         SwingWorker<Object[], Void> worker = new SwingWorker<>() {
             private java.util.List<Object[]> rows = new java.util.ArrayList<>();
             private int count = 0;
@@ -445,7 +556,7 @@ public class InventoryPanel extends JPanel {
                 try {
                     Connection conn = DatabaseManager.getInstance().getConnection();
 
-                    StringBuilder cond = new StringBuilder(" WHERE 1=1");
+                    StringBuilder cond = new StringBuilder(" WHERE sp.bi_xoa = 0");
                     String search = searchField != null ? searchField.getText().trim() : "";
                     if (!search.isEmpty())
                         cond.append(" AND (sp.ten_san_pham LIKE '%").append(search)
@@ -454,6 +565,24 @@ public class InventoryPanel extends JPanel {
                     String cat = categoryFilter != null ? (String) categoryFilter.getSelectedItem() : "Tất cả danh mục";
                     if (cat != null && !cat.startsWith("Tất cả"))
                         cond.append(" AND d.ten_danh_muc='").append(cat).append("'");
+
+                    java.util.List<Integer> selectedGroupIds = new java.util.ArrayList<>();
+                    if (groupCheckboxes != null) {
+                        for (java.util.Map.Entry<Integer, JCheckBox> entry : groupCheckboxes.entrySet()) {
+                            if (entry.getValue().isSelected()) {
+                                selectedGroupIds.add(entry.getKey());
+                            }
+                        }
+                    }
+                    if (!selectedGroupIds.isEmpty()) {
+                        cond.append(" AND sp.id_nhom IN (");
+                        for (int i = 0; i < selectedGroupIds.size(); i++) {
+                            if (i > 0)
+                                cond.append(",");
+                            cond.append(selectedGroupIds.get(i));
+                        }
+                        cond.append(")");
+                    }
 
                     java.util.List<String> activeStatuses = new java.util.ArrayList<>();
                     if (menuConHang != null && menuConHang.isSelected())
@@ -483,17 +612,17 @@ public class InventoryPanel extends JPanel {
 
                     // Stats (thu thập vào biến local — không chạm UI)
                     try (Statement s = conn.createStatement()) {
-                        ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM san_pham");
+                        ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM san_pham WHERE bi_xoa = 0");
                         if (rs.next())
                             statTotal = rs.getInt(1) + " mặt hàng";
                         rs.close();
                         // Đếm sản phẩm có trạng_thái cảnh báo hoặc hết hàng
                         rs = s.executeQuery(
-                                "SELECT COUNT(*) FROM san_pham WHERE trang_thai IN ('Cảnh báo','Hết hàng')");
+                                "SELECT COUNT(*) FROM san_pham WHERE trang_thai IN ('Cảnh báo','Hết hàng') AND bi_xoa = 0");
                         if (rs.next())
                             statLow = String.valueOf(rs.getInt(1));
                         rs.close();
-                        rs = s.executeQuery("SELECT COALESCE(SUM(gia_nhap_hien_tai * so_luong_ton), 0) FROM san_pham");
+                        rs = s.executeQuery("SELECT COALESCE(SUM(gia_nhap_hien_tai * so_luong_ton), 0) FROM san_pham WHERE bi_xoa = 0");
                         if (rs.next())
                             statValue = vndFormat.format(rs.getLong(1)) + " ₫";
                         rs.close();
@@ -582,7 +711,7 @@ public class InventoryPanel extends JPanel {
                 try {
                     Connection conn = DatabaseManager.getInstance().getConnection();
 
-                    StringBuilder cond = new StringBuilder(" WHERE 1=1");
+                    StringBuilder cond = new StringBuilder(" WHERE sp.bi_xoa = 0");
                     String search = searchField != null ? searchField.getText().trim() : "";
                     if (!search.isEmpty())
                         cond.append(" AND (sp.ten_san_pham LIKE '%").append(search)
@@ -591,6 +720,24 @@ public class InventoryPanel extends JPanel {
                     String cat = categoryFilter != null ? (String) categoryFilter.getSelectedItem() : "Tất cả danh mục";
                     if (cat != null && !cat.startsWith("Tất cả"))
                         cond.append(" AND d.ten_danh_muc='").append(cat).append("'");
+
+                    java.util.List<Integer> selectedGroupIds = new java.util.ArrayList<>();
+                    if (groupCheckboxes != null) {
+                        for (java.util.Map.Entry<Integer, JCheckBox> entry : groupCheckboxes.entrySet()) {
+                            if (entry.getValue().isSelected()) {
+                                selectedGroupIds.add(entry.getKey());
+                            }
+                        }
+                    }
+                    if (!selectedGroupIds.isEmpty()) {
+                        cond.append(" AND sp.id_nhom IN (");
+                        for (int i = 0; i < selectedGroupIds.size(); i++) {
+                            if (i > 0)
+                                cond.append(",");
+                            cond.append(selectedGroupIds.get(i));
+                        }
+                        cond.append(")");
+                    }
 
                     java.util.List<String> activeStatuses = new java.util.ArrayList<>();
                     if (menuConHang != null && menuConHang.isSelected())
@@ -696,5 +843,317 @@ public class InventoryPanel extends JPanel {
             return "\"" + result + "\"";
         }
         return result;
+    }
+
+    private void loadGroups() {
+        SwingWorker<java.util.List<Object[]>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected java.util.List<Object[]> doInBackground() throws Exception {
+                java.util.List<Object[]> list = new java.util.ArrayList<>();
+                Connection conn = DatabaseManager.getInstance().getConnection();
+                String sql = "SELECT id, ten_nhom FROM nhom_san_pham ORDER BY ten_nhom";
+                try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+                    while (rs.next()) {
+                        list.add(new Object[]{rs.getInt("id"), rs.getString("ten_nhom")});
+                    }
+                }
+                return list;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    java.util.List<Object[]> list = get();
+                    groupCheckBoxPanel.removeAll();
+                    groupCheckboxes.clear();
+
+                    for (Object[] item : list) {
+                        int id = (int) item[0];
+                        String name = (String) item[1];
+                        JCheckBox cb = new JCheckBox(name);
+                        cb.setFont(AppTheme.FONT_BODY_MD);
+                        cb.setForeground(AppTheme.ON_SURFACE);
+                        cb.setBackground(AppTheme.SURFACE_LOW);
+                        cb.addActionListener(e -> {
+                            currentPage = 1;
+                            updateGroupFilterButtonText();
+                            loadData();
+                        });
+                        groupCheckboxes.put(id, cb);
+                        groupCheckBoxPanel.add(cb);
+                    }
+                    groupCheckBoxPanel.revalidate();
+                    groupCheckBoxPanel.repaint();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    private void updateGroupFilterButtonText() {
+        java.util.List<String> selected = new java.util.ArrayList<>();
+        for (JCheckBox cb : groupCheckboxes.values()) {
+            if (cb.isSelected()) {
+                selected.add(cb.getText());
+            }
+        }
+        if (selected.isEmpty()) {
+            groupFilterBtn.setText("Nhóm sản phẩm ↓");
+        } else if (selected.size() == groupCheckboxes.size()) {
+            groupFilterBtn.setText("Tất cả nhóm ↓");
+        } else if (selected.size() == 1) {
+            groupFilterBtn.setText(selected.get(0) + " ↓");
+        } else {
+            groupFilterBtn.setText(selected.size() + " nhóm đã chọn ↓");
+        }
+    }
+
+    public void loadData() {
+        loadActiveData();
+        loadDeletedData();
+    }
+
+    public void loadDeletedData() {
+        SwingWorker<Object[], Void> worker = new SwingWorker<>() {
+            private java.util.List<Object[]> rows = new java.util.ArrayList<>();
+            private int count = 0;
+
+            @Override
+            protected Object[] doInBackground() {
+                try {
+                    Connection conn = DatabaseManager.getInstance().getConnection();
+
+                    StringBuilder cond = new StringBuilder(" WHERE sp.bi_xoa = 1");
+                    String search = deletedSearchField != null ? deletedSearchField.getText().trim() : "";
+                    if (!search.isEmpty())
+                        cond.append(" AND (sp.ten_san_pham LIKE '%").append(search)
+                                .append("%' OR CAST(sp.id AS CHAR) LIKE '%").append(search).append("%')");
+
+                    // Count
+                    String countSql = "SELECT COUNT(*) FROM san_pham sp"
+                            + " LEFT JOIN danh_muc d ON sp.id_danh_muc = d.id" + cond;
+                    try (Statement s = conn.createStatement(); ResultSet rs = s.executeQuery(countSql)) {
+                        if (rs.next())
+                            count = rs.getInt(1);
+                    }
+
+                    // Data page
+                    int offset = (deletedCurrentPage - 1) * PAGE_SIZE;
+                    String sql = "SELECT sp.id, sp.ten_san_pham,"
+                            + " d.ten_danh_muc AS danh_muc,"
+                            + " dv.ten_don_vi AS don_vi,"
+                            + " sp.so_luong_ton,"
+                            + " sp.gia_nhap_hien_tai,"
+                            + " sp.gia_ban_hien_tai,"
+                            + " sp.trang_thai"
+                            + " FROM san_pham sp"
+                            + " LEFT JOIN danh_muc d ON sp.id_danh_muc = d.id"
+                            + " LEFT JOIN don_vi_tinh dv ON sp.id_don_vi = dv.id"
+                            + cond
+                            + " ORDER BY sp.id LIMIT " + PAGE_SIZE + " OFFSET " + offset;
+
+                    try (Statement s = conn.createStatement(); ResultSet rs = s.executeQuery(sql)) {
+                        while (rs.next()) {
+                            long soLuong = rs.getLong("so_luong_ton");
+                            long giaNhap = rs.getLong("gia_nhap_hien_tai");
+                            long giaBan = rs.getLong("gia_ban_hien_tai");
+                            rows.add(new Object[] {
+                                    String.valueOf(rs.getInt("id")),
+                                    rs.getString("ten_san_pham")
+                                            + (rs.getString("danh_muc") != null ? "\n" + rs.getString("danh_muc") : ""),
+                                    rs.getString("don_vi"),
+                                    vndFormat.format(giaBan) + " ₫",
+                                    vndFormat.format(giaNhap) + " ₫",
+                                    soLuong,
+                                    vndFormat.format(soLuong * giaNhap) + " ₫",
+                                    rs.getString("trang_thai"), // cột 7: Trạng thái
+                                    "" // cột 8: Thao tác
+                            });
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                deletedTotalItems = count;
+                deletedTableModel.setRowCount(0);
+                for (Object[] row : rows)
+                    deletedTableModel.addRow(row);
+                deletedPagination.update(deletedTotalItems, PAGE_SIZE, deletedCurrentPage);
+            }
+        };
+        worker.execute();
+    }
+
+    private void restoreProduct(String idStr) {
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Bạn có chắc muốn khôi phục sản phẩm ID '" + idStr + "' không?",
+                "Xác nhận khôi phục",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION)
+            return;
+
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE san_pham SET bi_xoa = 0 WHERE id = ?")) {
+                ps.setInt(1, Integer.parseInt(idStr));
+                int affected = ps.executeUpdate();
+                if (affected > 0) {
+                    JOptionPane.showMessageDialog(this,
+                            "Đã khôi phục sản phẩm ID '" + idStr + "' thành công.",
+                            "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                    loadData();
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Lỗi khi khôi phục: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private JPanel buildDeletedProductsTab() {
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
+        panel.setBackground(AppTheme.BACKGROUND);
+        panel.setBorder(new EmptyBorder(12, 0, 0, 0));
+
+        // Filter search field for deleted items
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        filterPanel.setBackground(AppTheme.SURFACE_LOW);
+        filterPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                new EmptyBorder(8, 12, 8, 12)));
+
+        deletedSearchField = new JTextField();
+        deletedSearchField.setPreferredSize(new Dimension(240, 32));
+        deletedSearchField.setFont(AppTheme.FONT_BODY_MD);
+        deletedSearchField.putClientProperty("JTextField.placeholderText", " Tìm kiếm theo tên, mã...");
+        deletedSearchField.addActionListener(e -> {
+            deletedCurrentPage = 1;
+            loadDeletedData();
+        });
+
+        JButton searchBtn = new JButton("Tìm kiếm");
+        searchBtn.setFont(AppTheme.FONT_LABEL);
+        searchBtn.setBackground(AppTheme.SURFACE_VARIANT);
+        searchBtn.setForeground(AppTheme.ON_SURFACE);
+        searchBtn.setBorderPainted(true);
+        searchBtn.setFocusPainted(false);
+        searchBtn.addActionListener(e -> {
+            deletedCurrentPage = 1;
+            loadDeletedData();
+        });
+
+        filterPanel.add(new JLabel("Tìm:") {
+            {
+                setFont(AppTheme.FONT_LABEL);
+                setForeground(AppTheme.ON_SURFACE_VAR);
+            }
+        });
+        filterPanel.add(deletedSearchField);
+        filterPanel.add(searchBtn);
+
+        // Deleted Table section
+        JPanel tablePanel = new JPanel(new BorderLayout());
+        tablePanel.setBackground(AppTheme.SURFACE_LOW);
+        tablePanel.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+
+        String[] cols = { "Mã", "Tên", "Đơn vị", "Giá bán", "Giá nhập", "Tồn kho", "Vốn tồn", "Trạng thái",
+                "Thao tác" };
+        deletedTableModel = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        };
+        deletedTable = new StyledTable(deletedTableModel);
+
+        // Render status badge for column 7
+        deletedTable.getColumnModel().getColumn(7).setCellRenderer((t, v, sel, foc, r, c) -> {
+            JPanel wrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 12));
+            wrapper.setBackground(sel ? AppTheme.withAlpha(AppTheme.PRIMARY, 35) : AppTheme.SURFACE_LOW);
+            wrapper.add(StatusBadge.forStockStatus(v == null ? "" : v.toString()));
+            return wrapper;
+        });
+
+        // Action column renderer: Edit and Restore (✏ and 🔄)
+        deletedTable.getColumnModel().getColumn(8).setCellRenderer((t, v, sel, foc, r, c) -> {
+            JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 7));
+            p.setBackground(sel ? AppTheme.withAlpha(AppTheme.PRIMARY, 35) : AppTheme.SURFACE_LOW);
+            JButton eBtn = new JButton("✏");
+            JButton rBtn = new JButton("🔄");
+            for (JButton b : new JButton[] { eBtn, rBtn }) {
+                b.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+                b.setOpaque(false);
+                b.setBorderPainted(false);
+                b.setContentAreaFilled(false);
+                b.setFocusPainted(false);
+            }
+            eBtn.setForeground(AppTheme.PRIMARY);
+            rBtn.setForeground(AppTheme.SECONDARY);
+            p.add(eBtn);
+            p.add(rBtn);
+            return p;
+        });
+
+        int[] widths = { 60, 200, 75, 95, 95, 70, 110, 85, 75 };
+        for (int i = 0; i < widths.length; i++)
+            deletedTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+
+        deletedPagination = new Pagination(page -> {
+            deletedCurrentPage = page;
+            loadDeletedData();
+        });
+
+        deletedTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int col = deletedTable.columnAtPoint(e.getPoint());
+                int row = deletedTable.rowAtPoint(e.getPoint());
+                if (row < 0 || col != 8)
+                    return;
+
+                String maHH = deletedTableModel.getValueAt(row, 0).toString();
+
+                Rectangle cellRect = deletedTable.getCellRect(row, 8, false);
+                int relX = e.getX() - cellRect.x;
+                boolean isEdit = relX < cellRect.width / 2;
+
+                if (isEdit) {
+                    openEditDialog(maHH);
+                } else {
+                    restoreProduct(maHH);
+                }
+            }
+        });
+
+        tablePanel.add(deletedTable.wrapInScrollPane(), BorderLayout.CENTER);
+        tablePanel.add(deletedPagination, BorderLayout.SOUTH);
+
+        panel.add(filterPanel, BorderLayout.NORTH);
+        panel.add(tablePanel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel buildTabHeader(String icon, String title) {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        p.setOpaque(false);
+        JLabel iconLbl = new JLabel(icon);
+        iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        JLabel titleLbl = new JLabel(title);
+        titleLbl.setFont(AppTheme.FONT_LABEL);
+        titleLbl.setForeground(AppTheme.ON_SURFACE);
+        p.add(iconLbl);
+        p.add(titleLbl);
+        return p;
     }
 }

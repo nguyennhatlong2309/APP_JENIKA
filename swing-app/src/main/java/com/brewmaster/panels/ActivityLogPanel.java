@@ -30,8 +30,16 @@ public class ActivityLogPanel extends JPanel {
     private Pagination        pagination;
 
     // Bộ lọc
-    private JComboBox<String> cbTab;
-    private JComboBox<String> cbAction;
+    private JButton           tabFilterBtn;
+    private JPopupMenu        tabMenu;
+    private JTextField        tabSearchField;
+    private final java.util.Map<String, JCheckBox> tabCheckboxes = new java.util.LinkedHashMap<>();
+
+    private JButton           actionFilterBtn;
+    private JPopupMenu        actionMenu;
+    private JTextField        actionSearchField;
+    private final java.util.Map<String, JCheckBox> actionCheckboxes = new java.util.LinkedHashMap<>();
+
     private JTextField        tfSearch;
     private DatePicker        dpFrom;
     private DatePicker        dpTo;
@@ -111,8 +119,12 @@ public class ActivityLogPanel extends JPanel {
         refreshBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         refreshBtn.addActionListener(e -> {
             tfSearch.setText("");
-            cbTab.setSelectedIndex(0);
-            cbAction.setSelectedIndex(0);
+            if (tabSearchField != null) tabSearchField.setText("");
+            if (actionSearchField != null) actionSearchField.setText("");
+            for (JCheckBox cb : tabCheckboxes.values()) cb.setSelected(false);
+            for (JCheckBox cb : actionCheckboxes.values()) cb.setSelected(false);
+            updateTabFilterButtonText();
+            updateActionFilterButtonText();
             dpFrom.setValue(LocalDate.now().withDayOfMonth(1));
             dpTo.setValue(LocalDate.now());
             currentPage = 1;
@@ -179,21 +191,175 @@ public class ActivityLogPanel extends JPanel {
         tfSearch.putClientProperty("JTextField.placeholderText", "🔍  Tìm mã / mô tả...");
         tfSearch.addActionListener(e -> { currentPage = 1; loadData(); });
 
-        // Lọc theo Tab
-        cbTab = new JComboBox<>(new String[]{
-                "Tất cả tab", "Bán hàng", "Nhập hàng", "Thu Chi"
-        });
-        cbTab.setFont(AppTheme.FONT_BODY_MD);
-        cbTab.setPreferredSize(new Dimension(140, 32));
-        cbTab.addActionListener(e -> { currentPage = 1; loadData(); });
+        // tab filter button setup
+        tabFilterBtn = new JButton("Phân hệ ↓");
+        tabFilterBtn.setFont(AppTheme.FONT_BODY_MD);
+        tabFilterBtn.setPreferredSize(new Dimension(140, 32));
+        tabFilterBtn.setBackground(AppTheme.SURFACE_LOW);
+        tabFilterBtn.setForeground(AppTheme.ON_SURFACE);
+        tabFilterBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)));
+        tabFilterBtn.setFocusPainted(false);
+        tabFilterBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        tabFilterBtn.setHorizontalAlignment(SwingConstants.LEFT);
 
-        // Lọc theo Thao tác
-        cbAction = new JComboBox<>(new String[]{
-                "Tất cả thao tác", "Thêm", "Sửa", "Xóa"
+        tabMenu = new JPopupMenu();
+        tabMenu.setBackground(AppTheme.SURFACE_LOW);
+        tabMenu.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+        tabMenu.setLayout(new BorderLayout());
+
+        JPanel tabPopupContent = new JPanel(new BorderLayout(0, 6));
+        tabPopupContent.setBackground(AppTheme.SURFACE_LOW);
+        tabPopupContent.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        tabSearchField = new JTextField();
+        tabSearchField.setFont(AppTheme.FONT_BODY_MD);
+        tabSearchField.putClientProperty("JTextField.placeholderText", " Tìm phân hệ...");
+        tabSearchField.setPreferredSize(new Dimension(200, 32));
+        tabSearchField.setBackground(AppTheme.SURFACE_MED);
+        tabSearchField.setForeground(AppTheme.ON_SURFACE);
+        tabSearchField.setCaretColor(AppTheme.ON_SURFACE);
+        tabSearchField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+
+        JPanel tabCheckboxPanel = new JPanel();
+        tabCheckboxPanel.setLayout(new BoxLayout(tabCheckboxPanel, BoxLayout.Y_AXIS));
+        tabCheckboxPanel.setBackground(AppTheme.SURFACE_LOW);
+
+        String[] tabs = { "Bán hàng", "Nhập hàng", "Thu Chi" };
+        for (String tab : tabs) {
+            JCheckBox cb = new JCheckBox(tab);
+            cb.setFont(AppTheme.FONT_BODY_MD);
+            cb.setForeground(AppTheme.ON_SURFACE);
+            cb.setBackground(AppTheme.SURFACE_LOW);
+            cb.addActionListener(evt -> {
+                currentPage = 1;
+                updateTabFilterButtonText();
+                loadData();
+            });
+            tabCheckboxes.put(tab, cb);
+            tabCheckboxPanel.add(cb);
+        }
+
+        JScrollPane tabScrollPane = new JScrollPane(tabCheckboxPanel);
+        tabScrollPane.setPreferredSize(new Dimension(200, 150));
+        tabScrollPane.setBorder(null);
+        tabScrollPane.getVerticalScrollBar().setUnitIncrement(12);
+
+        tabPopupContent.add(tabSearchField, BorderLayout.NORTH);
+        tabPopupContent.add(tabScrollPane, BorderLayout.CENTER);
+        tabMenu.add(tabPopupContent);
+
+        tabSearchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+
+            private void filter() {
+                String text = tabSearchField.getText().trim().toLowerCase();
+                tabCheckboxPanel.removeAll();
+                for (JCheckBox cb : tabCheckboxes.values()) {
+                    if (text.isEmpty() || cb.getText().toLowerCase().contains(text)) {
+                        tabCheckboxPanel.add(cb);
+                    }
+                }
+                tabScrollPane.getVerticalScrollBar().setValue(0);
+                tabCheckboxPanel.revalidate();
+                tabCheckboxPanel.repaint();
+            }
         });
-        cbAction.setFont(AppTheme.FONT_BODY_MD);
-        cbAction.setPreferredSize(new Dimension(150, 32));
-        cbAction.addActionListener(e -> { currentPage = 1; loadData(); });
+
+        tabFilterBtn.addActionListener(evt -> {
+            tabMenu.show(tabFilterBtn, 0, tabFilterBtn.getHeight());
+            tabSearchField.requestFocusInWindow();
+        });
+
+        // action filter button setup
+        actionFilterBtn = new JButton("Thao tác ↓");
+        actionFilterBtn.setFont(AppTheme.FONT_BODY_MD);
+        actionFilterBtn.setPreferredSize(new Dimension(150, 32));
+        actionFilterBtn.setBackground(AppTheme.SURFACE_LOW);
+        actionFilterBtn.setForeground(AppTheme.ON_SURFACE);
+        actionFilterBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)));
+        actionFilterBtn.setFocusPainted(false);
+        actionFilterBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        actionFilterBtn.setHorizontalAlignment(SwingConstants.LEFT);
+
+        actionMenu = new JPopupMenu();
+        actionMenu.setBackground(AppTheme.SURFACE_LOW);
+        actionMenu.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+        actionMenu.setLayout(new BorderLayout());
+
+        JPanel actionPopupContent = new JPanel(new BorderLayout(0, 6));
+        actionPopupContent.setBackground(AppTheme.SURFACE_LOW);
+        actionPopupContent.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        actionSearchField = new JTextField();
+        actionSearchField.setFont(AppTheme.FONT_BODY_MD);
+        actionSearchField.putClientProperty("JTextField.placeholderText", " Tìm thao tác...");
+        actionSearchField.setPreferredSize(new Dimension(200, 32));
+        actionSearchField.setBackground(AppTheme.SURFACE_MED);
+        actionSearchField.setForeground(AppTheme.ON_SURFACE);
+        actionSearchField.setCaretColor(AppTheme.ON_SURFACE);
+        actionSearchField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+
+        JPanel actionCheckboxPanel = new JPanel();
+        actionCheckboxPanel.setLayout(new BoxLayout(actionCheckboxPanel, BoxLayout.Y_AXIS));
+        actionCheckboxPanel.setBackground(AppTheme.SURFACE_LOW);
+
+        String[] actions = { "Thêm", "Sửa", "Xóa" };
+        for (String act : actions) {
+            JCheckBox cb = new JCheckBox(act);
+            cb.setFont(AppTheme.FONT_BODY_MD);
+            cb.setForeground(AppTheme.ON_SURFACE);
+            cb.setBackground(AppTheme.SURFACE_LOW);
+            cb.addActionListener(evt -> {
+                currentPage = 1;
+                updateActionFilterButtonText();
+                loadData();
+            });
+            actionCheckboxes.put(act, cb);
+            actionCheckboxPanel.add(cb);
+        }
+
+        JScrollPane actionScrollPane = new JScrollPane(actionCheckboxPanel);
+        actionScrollPane.setPreferredSize(new Dimension(200, 150));
+        actionScrollPane.setBorder(null);
+        actionScrollPane.getVerticalScrollBar().setUnitIncrement(12);
+
+        actionPopupContent.add(actionSearchField, BorderLayout.NORTH);
+        actionPopupContent.add(actionScrollPane, BorderLayout.CENTER);
+        actionMenu.add(actionPopupContent);
+
+        actionSearchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+
+            private void filter() {
+                String text = actionSearchField.getText().trim().toLowerCase();
+                actionCheckboxPanel.removeAll();
+                for (JCheckBox cb : actionCheckboxes.values()) {
+                    if (text.isEmpty() || cb.getText().toLowerCase().contains(text)) {
+                        actionCheckboxPanel.add(cb);
+                    }
+                }
+                actionScrollPane.getVerticalScrollBar().setValue(0);
+                actionCheckboxPanel.revalidate();
+                actionCheckboxPanel.repaint();
+            }
+        });
+
+        actionFilterBtn.addActionListener(evt -> {
+            actionMenu.show(actionFilterBtn, 0, actionFilterBtn.getHeight());
+            actionSearchField.requestFocusInWindow();
+        });
 
         dpFrom = new DatePicker();
         dpFrom.setValue(LocalDate.now().withDayOfMonth(1));
@@ -208,9 +374,9 @@ public class ActivityLogPanel extends JPanel {
         p.add(makeLabel("Tìm kiếm:"));
         p.add(tfSearch);
         p.add(makeLabel("Tab:"));
-        p.add(cbTab);
+        p.add(tabFilterBtn);
         p.add(makeLabel("Thao tác:"));
-        p.add(cbAction);
+        p.add(actionFilterBtn);
         p.add(makeLabel("Từ ngày:"));
         p.add(dpFrom);
         p.add(makeLabel("Đến ngày:"));
@@ -367,14 +533,38 @@ public class ActivityLogPanel extends JPanel {
                             .append("%' OR nk.mo_ta LIKE '%").append(escaped).append("%')");
                     }
 
-                    String tabVal = cbTab != null ? (String) cbTab.getSelectedItem() : "Tất cả tab";
-                    if (tabVal != null && !tabVal.equals("Tất cả tab")) {
-                        cond.append(" AND nk.tab = '").append(tabVal.replace("'", "''")).append("'");
+                    java.util.List<String> selectedTabs = new java.util.ArrayList<>();
+                    if (tabCheckboxes != null) {
+                        for (java.util.Map.Entry<String, JCheckBox> entry : tabCheckboxes.entrySet()) {
+                            if (entry.getValue().isSelected()) {
+                                selectedTabs.add(entry.getKey());
+                            }
+                        }
+                    }
+                    if (!selectedTabs.isEmpty() && selectedTabs.size() < tabCheckboxes.size()) {
+                        cond.append(" AND nk.tab IN (");
+                        for (int i = 0; i < selectedTabs.size(); i++) {
+                            if (i > 0) cond.append(",");
+                            cond.append("'").append(selectedTabs.get(i).replace("'", "''")).append("'");
+                        }
+                        cond.append(")");
                     }
 
-                    String actionVal = cbAction != null ? (String) cbAction.getSelectedItem() : "Tất cả thao tác";
-                    if (actionVal != null && !actionVal.equals("Tất cả thao tác")) {
-                        cond.append(" AND nk.thao_tac = '").append(actionVal.replace("'", "''")).append("'");
+                    java.util.List<String> selectedActions = new java.util.ArrayList<>();
+                    if (actionCheckboxes != null) {
+                        for (java.util.Map.Entry<String, JCheckBox> entry : actionCheckboxes.entrySet()) {
+                            if (entry.getValue().isSelected()) {
+                                selectedActions.add(entry.getKey());
+                            }
+                        }
+                    }
+                    if (!selectedActions.isEmpty() && selectedActions.size() < actionCheckboxes.size()) {
+                        cond.append(" AND nk.thao_tac IN (");
+                        for (int i = 0; i < selectedActions.size(); i++) {
+                            if (i > 0) cond.append(",");
+                            cond.append("'").append(selectedActions.get(i).replace("'", "''")).append("'");
+                        }
+                        cond.append(")");
                     }
 
                     if (dpFrom != null && dpFrom.getValue() != null) {
@@ -653,5 +843,41 @@ public class ActivityLogPanel extends JPanel {
         l.setFont(AppTheme.FONT_LABEL);
         l.setForeground(AppTheme.ON_SURFACE_VAR);
         return l;
+    }
+
+    private void updateTabFilterButtonText() {
+        java.util.List<String> selected = new java.util.ArrayList<>();
+        for (JCheckBox cb : tabCheckboxes.values()) {
+            if (cb.isSelected()) {
+                selected.add(cb.getText());
+            }
+        }
+        if (selected.isEmpty()) {
+            tabFilterBtn.setText("Phân hệ ↓");
+        } else if (selected.size() == tabCheckboxes.size()) {
+            tabFilterBtn.setText("Tất cả phân hệ ↓");
+        } else if (selected.size() == 1) {
+            tabFilterBtn.setText(selected.get(0) + " ↓");
+        } else {
+            tabFilterBtn.setText(selected.size() + " phân hệ ↓");
+        }
+    }
+
+    private void updateActionFilterButtonText() {
+        java.util.List<String> selected = new java.util.ArrayList<>();
+        for (JCheckBox cb : actionCheckboxes.values()) {
+            if (cb.isSelected()) {
+                selected.add(cb.getText());
+            }
+        }
+        if (selected.isEmpty()) {
+            actionFilterBtn.setText("Thao tác ↓");
+        } else if (selected.size() == actionCheckboxes.size()) {
+            actionFilterBtn.setText("Tất cả thao tác ↓");
+        } else if (selected.size() == 1) {
+            actionFilterBtn.setText(selected.get(0) + " ↓");
+        } else {
+            actionFilterBtn.setText(selected.size() + " thao tác ↓");
+        }
     }
 }

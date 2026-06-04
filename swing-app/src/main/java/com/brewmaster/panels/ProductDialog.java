@@ -19,7 +19,7 @@ public class ProductDialog extends JDialog {
 
     // ===================== Fields =====================
     private JTextField tfTenHH;
-    private JComboBox<String> cbDanhMuc, cbDonVi;
+    private JComboBox<String> cbDanhMuc, cbDonVi, cbNhomSanPham;
     private JFormattedTextField tfGiaNhap, tfGiaBan;
     private JFormattedTextField tfTonKhoThucTe;
     private JFormattedTextField tfCanhBaoTon; // ngưỡng cảnh báo tồn kho
@@ -31,6 +31,7 @@ public class ProductDialog extends JDialog {
 
     // Callback sau khi lưu thành công
     private Runnable onSaveCallback;
+    private boolean isDataLoading = false;
 
     // ===================== Constructor =====================
 
@@ -140,6 +141,20 @@ public class ProductDialog extends JDialog {
         // ---- Thông tin cơ bản ----
         form.add(sectionLabel("📋  THÔNG TIN SẢN PHẨM  "));
         form.add(vgap(8));
+
+        // Nhóm sản phẩm
+        cbNhomSanPham = createComboBox(loadGroups());
+        cbNhomSanPham.addActionListener(e -> {
+            String selected = (String) cbNhomSanPham.getSelectedItem();
+            if ("+ Thêm nhóm mới...".equals(selected)) {
+                SwingUtilities.invokeLater(() -> addNewGroup());
+            } else if (!isDataLoading && selected != null && !selected.startsWith("--")) {
+                tfTenHH.setText(selected);
+                tfTenHH.requestFocusInWindow();
+            }
+        });
+        form.add(fullWidth(fieldBlock("Nhóm sản phẩm", cbNhomSanPham)));
+        form.add(vgap(10));
 
         // Tên HH
         tfTenHH = createTextField();
@@ -266,6 +281,69 @@ public class ProductDialog extends JDialog {
 
     // ===================== Data =====================
 
+    /** Tải danh sách nhóm sản phẩm từ DB */
+    private String[] loadGroups() {
+        java.util.List<String> groups = new ArrayList<>();
+        groups.add("-- Chọn nhóm sản phẩm --");
+        groups.add("+ Thêm nhóm mới...");
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            try (Statement st = conn.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT ten_nhom FROM nhom_san_pham ORDER BY ten_nhom")) {
+                while (rs.next()) {
+                    groups.add(rs.getString("ten_nhom"));
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return groups.toArray(new String[0]);
+    }
+
+    private void addNewGroup() {
+        String input = JOptionPane.showInputDialog(this, "Nhập tên nhóm sản phẩm mới:", "Thêm nhóm mới", JOptionPane.PLAIN_MESSAGE);
+        if (input != null && !input.trim().isEmpty()) {
+            String newGroup = input.trim();
+            try {
+                Connection conn = DatabaseManager.getInstance().getConnection();
+                int existingId = -1;
+                try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM nhom_san_pham WHERE ten_nhom = ?")) {
+                    ps.setString(1, newGroup);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            existingId = rs.getInt(1);
+                        }
+                    }
+                }
+                if (existingId == -1) {
+                    try (PreparedStatement ps = conn.prepareStatement("INSERT INTO nhom_san_pham (ten_nhom) VALUES (?)")) {
+                        ps.setString(1, newGroup);
+                        ps.executeUpdate();
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(this, "Nhóm sản phẩm đã tồn tại.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+                }
+                reloadGroups(newGroup);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Lỗi khi thêm nhóm: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                cbNhomSanPham.setSelectedIndex(0);
+            }
+        } else {
+            cbNhomSanPham.setSelectedIndex(0);
+        }
+    }
+
+    private void reloadGroups(String selectedGroup) {
+        String[] groups = loadGroups();
+        cbNhomSanPham.setModel(new DefaultComboBoxModel<>(groups));
+        if (selectedGroup != null) {
+            cbNhomSanPham.setSelectedItem(selectedGroup);
+        } else {
+            cbNhomSanPham.setSelectedIndex(0);
+        }
+    }
+
     /** Tải danh sách danh mục từ DB */
     private String[] loadCategories() {
         java.util.List<String> cats = new ArrayList<>();
@@ -304,14 +382,16 @@ public class ProductDialog extends JDialog {
 
     /** Nạp dữ liệu sản phẩm vào form (chế độ sửa) */
     private void loadProductData() {
+        isDataLoading = true;
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             // cfe_di_rom: san_pham JOIN danh_muc (ten_danh_muc) JOIN don_vi_tinh
             // (ten_don_vi)
             // maHH trong context này là id (int) của san_pham
-            String sql = "SELECT sp.*, d.ten_danh_muc, dv.ten_don_vi FROM san_pham sp " +
+            String sql = "SELECT sp.*, d.ten_danh_muc, dv.ten_don_vi, n.ten_nhom FROM san_pham sp " +
                     "LEFT JOIN danh_muc d ON sp.id_danh_muc = d.id " +
                     "LEFT JOIN don_vi_tinh dv ON sp.id_don_vi = dv.id " +
+                    "LEFT JOIN nhom_san_pham n ON sp.id_nhom = n.id " +
                     "WHERE sp.id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, Integer.parseInt(maHH));
@@ -323,6 +403,7 @@ public class ProductDialog extends JDialog {
                     tfTonKhoThucTe.setValue(rs.getDouble("so_luong_ton"));
                     // Nạp ngưỡng cảnh báo
                     tfCanhBaoTon.setValue(rs.getDouble("canh_bao_ton_kho"));
+                    taMoTa.setText(rs.getString("ghi_chu"));
 
                     // Chọn danh mục
                     String tenDm = rs.getString("ten_danh_muc");
@@ -346,13 +427,24 @@ public class ProductDialog extends JDialog {
                         }
                     }
 
-
+                    // Chọn nhóm sản phẩm
+                    String tenNhom = rs.getString("ten_nhom");
+                    if (tenNhom != null) {
+                        for (int i = 0; i < cbNhomSanPham.getItemCount(); i++) {
+                            if (tenNhom.equals(cbNhomSanPham.getItemAt(i))) {
+                                cbNhomSanPham.setSelectedIndex(i);
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Không thể tải dữ liệu: " + ex.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
+        } finally {
+            isDataLoading = false;
         }
     }
 
@@ -408,6 +500,19 @@ public class ProductDialog extends JDialog {
                     idDv = rs.getInt(1);
             }
 
+            // Lấy id nhóm sản phẩm từ bảng nhom_san_pham (cột ten_nhom)
+            int idNhom = -1;
+            String selectedNhom = (String) cbNhomSanPham.getSelectedItem();
+            if (selectedNhom != null && !selectedNhom.startsWith("--") && !"+ Thêm nhóm mới...".equals(selectedNhom)) {
+                try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM nhom_san_pham WHERE ten_nhom = ?")) {
+                    ps.setString(1, selectedNhom);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next())
+                            idNhom = rs.getInt(1);
+                    }
+                }
+            }
+
             if (idDm == -1 || idDv == -1) {
                 JOptionPane.showMessageDialog(this, "Danh mục hoặc đơn vị không hợp lệ.", "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -416,34 +521,46 @@ public class ProductDialog extends JDialog {
 
             if (isEditMode) {
                 // UPDATE san_pham – trang_thai sẽ do trigger tự động cập nhật
-                String sql = "UPDATE san_pham SET ten_san_pham=?, id_danh_muc=?, id_don_vi=?,"
-                        + " gia_nhap_hien_tai=?, gia_ban_hien_tai=?, so_luong_ton=?, canh_bao_ton_kho=?"
+                String sql = "UPDATE san_pham SET ten_san_pham=?, id_danh_muc=?, id_don_vi=?, id_nhom=?,"
+                        + " gia_nhap_hien_tai=?, gia_ban_hien_tai=?, so_luong_ton=?, canh_bao_ton_kho=?, ghi_chu=?"
                         + " WHERE id=?";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, ten);
                     ps.setInt(2, idDm);
                     ps.setInt(3, idDv);
-                    ps.setDouble(4, giaNhap);
-                    ps.setDouble(5, giaBan);
-                    ps.setDouble(6, tonTT);
-                    ps.setInt(7, (int) parseDouble(tfCanhBaoTon));
-                    ps.setInt(8, Integer.parseInt(this.maHH));
+                    if (idNhom == -1) {
+                        ps.setNull(4, java.sql.Types.INTEGER);
+                    } else {
+                        ps.setInt(4, idNhom);
+                    }
+                    ps.setDouble(5, giaNhap);
+                    ps.setDouble(6, giaBan);
+                    ps.setDouble(7, tonTT);
+                    ps.setInt(8, (int) parseDouble(tfCanhBaoTon));
+                    ps.setString(9, moTa.isEmpty() ? null : moTa);
+                    ps.setInt(10, Integer.parseInt(this.maHH));
                     ps.executeUpdate();
                 }
             } else {
                 // INSERT san_pham (id tự động AUTO_INCREMENT, không truyền ma_hh string)
                 // NOTE: trang_thai sẽ do trigger tự động cập nhật (không cần truyền)
-                String sql = "INSERT INTO san_pham (ten_san_pham, id_danh_muc, id_don_vi,"
-                        + " gia_nhap_hien_tai, gia_ban_hien_tai, so_luong_ton, canh_bao_ton_kho)"
-                        + " VALUES (?,?,?,?,?,?,?)";
+                String sql = "INSERT INTO san_pham (ten_san_pham, id_danh_muc, id_don_vi, id_nhom,"
+                        + " gia_nhap_hien_tai, gia_ban_hien_tai, so_luong_ton, canh_bao_ton_kho, ghi_chu)"
+                        + " VALUES (?,?,?,?,?,?,?,?,?)";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, ten);
                     ps.setInt(2, idDm);
                     ps.setInt(3, idDv);
-                    ps.setDouble(4, giaNhap);
-                    ps.setDouble(5, giaBan);
-                    ps.setDouble(6, tonTT);
-                    ps.setInt(7, (int) parseDouble(tfCanhBaoTon));
+                    if (idNhom == -1) {
+                        ps.setNull(4, java.sql.Types.INTEGER);
+                    } else {
+                        ps.setInt(4, idNhom);
+                    }
+                    ps.setDouble(5, giaNhap);
+                    ps.setDouble(6, giaBan);
+                    ps.setDouble(7, tonTT);
+                    ps.setInt(8, (int) parseDouble(tfCanhBaoTon));
+                    ps.setString(9, moTa.isEmpty() ? null : moTa);
                     ps.executeUpdate();
                 }
             }

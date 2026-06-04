@@ -22,6 +22,7 @@ public class StaffDialog extends JDialog {
     private final Integer staffId;
     private boolean saved = false;
     private Runnable onSaveCallback;
+    private Integer generatedId;
 
     /** Thêm mới */
     public StaffDialog(Frame owner) {
@@ -42,6 +43,7 @@ public class StaffDialog extends JDialog {
 
     public void setOnSaveCallback(Runnable cb) { this.onSaveCallback = cb; }
     public boolean isSaved() { return saved; }
+    public Integer getGeneratedId() { return generatedId; }
 
     private void initUI() {
         setSize(460, 480);
@@ -194,14 +196,21 @@ public class StaffDialog extends JDialog {
                     ps.setString(3, sdt.isEmpty() ? null : sdt);
                     ps.setInt(4, staffId);
                     ps.executeUpdate();
+                    generatedId = staffId;
                 }
             } else {
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO nhan_vien (ten_nhan_vien, vai_tro, sdt) VALUES (?, ?, ?)")) {
+                        "INSERT INTO nhan_vien (ten_nhan_vien, vai_tro, sdt) VALUES (?, ?, ?)",
+                        Statement.RETURN_GENERATED_KEYS)) {
                     ps.setString(1, ten);
                     ps.setString(2, vaiTro);
                     ps.setString(3, sdt.isEmpty() ? null : sdt);
                     ps.executeUpdate();
+                    try (ResultSet rs = ps.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            generatedId = rs.getInt(1);
+                        }
+                    }
                 }
             }
 

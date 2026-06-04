@@ -1,0 +1,15 @@
+# Set the default behavior to clear line endings on checkout to preserve LF.
+# This prevents warnings and ensures line endings remain consistent (LF) across Windows, macOS, and Linux.
+* text=auto eol=lf
+
+# Force specific files to be treated as binary/text if needed
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.jar binary
+*.zip binary
+*.xlsx binary
+*.docx binary

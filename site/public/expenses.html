@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Jenika | Store Expenses Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @layer base {
+            body {
+                @apply bg-background text-on-background font-body-md overflow-x-hidden;
+                background-image: 
+                    radial-gradient(circle at 0% 0%, rgba(3, 223, 195, 0.05) 0%, transparent 35%),
+                    radial-gradient(circle at 100% 100%, rgba(165, 231, 255, 0.05) 0%, transparent 35%);
+            }
+        }
+
+        .glass-card {
+            @apply bg-surface-glass backdrop-blur-[12px] border border-border-glass rounded-xl;
+        }
+
+        .glow-teal {
+            box-shadow: 0 0 20px -5px rgba(73, 252, 223, 0.4);
+        }
+
+        .glow-success {
+            box-shadow: 0 0 15px -5px rgba(16, 185, 129, 0.4);
+        }
+
+        .glow-warning {
+            box-shadow: 0 0 15px -5px rgba(245, 158, 11, 0.4);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(73, 252, 223, 0.3);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .modal-enter {
+            animation: modalFadeIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "success": "#10B981",
+                      "secondary": "#a5e7ff",
+                      "on-tertiary": "#442b00",
+                      "surface-container-high": "#242c29",
+                      "primary-fixed": "#49fcdf",
+                      "outline-variant": "#3b4a46",
+                      "text-variant": "#94A3B8",
+                      "on-tertiary-container": "#724b00",
+                      "primary-container": "#03dfc3",
+                      "warning": "#F59E0B",
+                      "surface-container-highest": "#2e3634",
+                      "on-error-container": "#ffdad6",
+                      "surface-glass": "rgba(17, 22, 37, 0.65)",
+                      "inverse-surface": "#dce4e1",
+                      "on-surface-variant": "#bacac5",
+                      "on-secondary": "#003543",
+                      "tertiary": "#ffdeb3",
+                      "on-surface": "#dce4e1",
+                      "tertiary-container": "#ffba4e",
+                      "on-background": "#dce4e1",
+                      "outline": "#84948f",
+                      "on-primary-container": "#005e51",
+                      "background": "#0d1513",
+                      "surface-container": "#19211f",
+                      "surface-variant": "#2e3634",
+                      "error": "#EF4444",
+                      "border-glass": "rgba(255, 255, 255, 0.08)",
+                      "surface-tint": "#02dfc3",
+                      "text-primary": "#FFFFFF",
+                      "on-primary": "#00382f",
+                      "primary": "#49fcdf",
+                      "surface": "#0A0E17",
+                      "surface-dim": "#0d1513",
+                      "surface-container-low": "#151d1b"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "stack-lg": "32px",
+                      "container-padding": "24px",
+                      "stack-md": "16px",
+                      "sidebar-width": "260px",
+                      "stack-sm": "8px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "label-md": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}]
+              }
+            },
+          }
+        }
+      </script>
+</head>
+<body class="bg-background">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-screen w-[260px] bg-surface-glass backdrop-blur-[12px] border-r border-border-glass flex flex-col py-6 z-40">
+<div class="px-6 mb-10">
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight font-bold">Jenika</h1>
+<p class="text-[11px] uppercase tracking-[0.2em] text-on-surface-variant font-semibold">Store Management</p>
+</div>
+<nav class="flex-1 space-y-1 overflow-y-auto px-0">
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="index.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="sales.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">shopping_cart</span>
+<span class="font-label-md text-label-md">Sales Orders</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="purchases.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Purchase Orders</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="inventory.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">inventory_2</span>
+<span class="font-label-md text-label-md">Inventory</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="partners.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">handshake</span>
+<span class="font-label-md text-label-md">Partners</span>
+</a>
+<!-- Active State: Expenses -->
+<a class="flex items-center px-6 py-3 border-l-4 border-primary bg-white/5 text-primary font-bold" href="expenses.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">payments</span>
+<span class="font-label-md text-label-md">Expenses</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="activity.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">history</span>
+<span class="font-label-md text-label-md">Activity Logs</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="settings.html">
+<span class="material-symbols-outlined mr-3 text-[20px]">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<div class="glass-card p-4 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary/20 flex-shrink-0">
+<img alt="Manager Profile" class="w-full h-full object-cover" data-alt="A professional portrait of a modern store manager in his late 30s, wearing a smart-casual dark shirt. He is set against a blurred, high-tech retail environment with soft neon teal lighting accents. The overall mood is confident and technologically sophisticated, aligning with a high-end futuristic dashboard aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmnvxyuw5kmagKjQKO5DrZOLxQrH-i6uR6QTzbP4iiCe81i6PMvvIendzhjE2LTR2iaCEV0YDoAsCY1YFuROWlQ9HUx5zCFnohw1GqPfQ2vjInsTiDekOBk7axZT5dmFY_QPZLfdsLb0E6gDNrc34t_t1La2KCIPVZvrrPTEZreeuoPUrfOBoVFOXIbP1zedotu4N_I4e30lm96TP_1SJqpnavuczFE4XX1f5929aNTnSIfu70BqD4fKH1RdolryFa6jfIsZtCCI0"/>
+</div>
+<div class="overflow-hidden">
+<p class="text-white font-bold text-sm truncate">Alex Jenika</p>
+<p class="text-on-surface-variant text-[11px]">Administrator</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[260px] min-h-screen p-container-padding pb-32">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center mb-8 h-16">
+<div class="flex items-center gap-6">
+<h2 class="font-headline-md text-headline-md font-bold text-white tracking-tight">Store Expenses</h2>
+<div class="relative w-80">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl">search</span>
+<input class="w-full bg-surface-glass border border-border-glass rounded-full py-2 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-on-surface" placeholder="Search expenses..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="bg-primary text-on-primary font-bold px-6 py-2.5 rounded-full flex items-center gap-2 glow-teal active:scale-95 transition-transform" onclick="toggleModal(true)">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                    Log Expense
+                </button>
+</div>
+</header>
+<!-- Stats Row -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-8">
+<div class="glass-card p-6 border-l-4 border-primary">
+<p class="text-on-surface-variant text-sm font-medium mb-1">Total Monthly Expenses</p>
+<h3 class="text-2xl font-bold text-white">34,200,000 <span class="text-xs font-normal text-on-surface-variant">VND</span></h3>
+<div class="mt-3 flex items-center gap-1 text-success text-xs">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>12.5% from last month</span>
+</div>
+</div>
+<div class="glass-card p-6">
+<p class="text-on-surface-variant text-sm font-medium mb-1">Fixed Rent</p>
+<h3 class="text-2xl font-bold text-white">15,000,000 <span class="text-xs font-normal text-on-surface-variant">VND</span></h3>
+<div class="mt-3 w-full bg-white/5 rounded-full h-1.5">
+<div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<div class="glass-card p-6">
+<p class="text-on-surface-variant text-sm font-medium mb-1">Marketing &amp; Ads</p>
+<h3 class="text-2xl font-bold text-white">8,400,000 <span class="text-xs font-normal text-on-surface-variant">VND</span></h3>
+<div class="mt-3 w-full bg-white/5 rounded-full h-1.5">
+<div class="bg-secondary h-full rounded-full" style="width: 65%"></div>
+</div>
+</div>
+<div class="glass-card p-6">
+<p class="text-on-surface-variant text-sm font-medium mb-1">Utilities &amp; Other</p>
+<h3 class="text-2xl font-bold text-white">10,800,000 <span class="text-xs font-normal text-on-surface-variant">VND</span></h3>
+<div class="mt-3 w-full bg-white/5 rounded-full h-1.5">
+<div class="bg-tertiary h-full rounded-full" style="width: 42%"></div>
+</div>
+</div>
+</section>
+<!-- Expense Log Table Container -->
+<section class="glass-card overflow-hidden">
+<!-- Filter Bar -->
+<div class="px-6 py-5 border-b border-border-glass flex flex-wrap items-center justify-between gap-4 bg-white/5">
+<div class="flex items-center gap-4">
+<span class="text-white font-semibold">Expense Log</span>
+<div class="h-6 w-[1px] bg-border-glass"></div>
+<div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+<button class="px-4 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold transition-all">All</button>
+<button class="px-4 py-1.5 rounded-full bg-white/5 border border-border-glass text-on-surface-variant text-xs font-medium hover:border-primary transition-all">Rent</button>
+<button class="px-4 py-1.5 rounded-full bg-white/5 border border-border-glass text-on-surface-variant text-xs font-medium hover:border-primary transition-all">Marketing</button>
+<button class="px-4 py-1.5 rounded-full bg-white/5 border border-border-glass text-on-surface-variant text-xs font-medium hover:border-primary transition-all">Utilities</button>
+<button class="px-4 py-1.5 rounded-full bg-white/5 border border-border-glass text-on-surface-variant text-xs font-medium hover:border-primary transition-all">Payroll</button>
+<button class="px-4 py-1.5 rounded-full bg-white/5 border border-border-glass text-on-surface-variant text-xs font-medium hover:border-primary transition-all">Software</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 glass-card hover:border-primary transition-all text-on-surface-variant">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="p-2 glass-card hover:border-primary transition-all text-on-surface-variant">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+<!-- Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-white/[0.02] text-on-surface-variant text-xs uppercase tracking-wider font-semibold border-b border-border-glass">
+<tr>
+<th class="px-6 py-4">ID</th>
+<th class="px-6 py-4">Name</th>
+<th class="px-6 py-4">Category</th>
+<th class="px-6 py-4">Date</th>
+<th class="px-6 py-4 text-right">Amount</th>
+<th class="px-6 py-4">Method</th>
+<th class="px-6 py-4">Status</th>
+<th class="px-6 py-4 text-center">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-glass/50">
+<!-- Row 1 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">#EXP-8402</td>
+<td class="px-6 py-4 text-white font-medium">Facebook Ads</td>
+<td class="px-6 py-4">
+<span class="bg-secondary/10 border border-secondary/30 text-secondary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Marketing</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">24 May 2024</td>
+<td class="px-6 py-4 text-right font-bold text-white">4,200,000 <span class="text-[10px] opacity-60">VND</span></td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-base">credit_card</span> Visa ·· 4421
+                                </div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-success/10 text-success border border-success/40 glow-success">
+<span class="w-1 h-1 rounded-full bg-success"></span> Paid
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-xl">more_vert</span></button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">#EXP-8401</td>
+<td class="px-6 py-4 text-white font-medium">Office Rent</td>
+<td class="px-6 py-4">
+<span class="bg-primary/10 border border-primary/30 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Rent</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">01 May 2024</td>
+<td class="px-6 py-4 text-right font-bold text-white">15,000,000 <span class="text-[10px] opacity-60">VND</span></td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-base">account_balance</span> Bank Transfer
+                                </div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-success/10 text-success border border-success/40 glow-success">
+<span class="w-1 h-1 rounded-full bg-success"></span> Paid
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-xl">more_vert</span></button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">#EXP-8399</td>
+<td class="px-6 py-4 text-white font-medium">Electricity Bill</td>
+<td class="px-6 py-4">
+<span class="bg-tertiary/10 border border-tertiary/30 text-tertiary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Utilities</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">28 May 2024</td>
+<td class="px-6 py-4 text-right font-bold text-white">3,200,000 <span class="text-[10px] opacity-60">VND</span></td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-base">payments</span> E-Wallet
+                                </div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-warning/10 text-warning border border-warning/40 glow-warning">
+<span class="w-1 h-1 rounded-full bg-warning"></span> Processing
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-xl">more_vert</span></button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">#EXP-8395</td>
+<td class="px-6 py-4 text-white font-medium">High-speed Internet</td>
+<td class="px-6 py-4">
+<span class="bg-tertiary/10 border border-tertiary/30 text-tertiary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Utilities</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">20 May 2024</td>
+<td class="px-6 py-4 text-right font-bold text-white">1,200,000 <span class="text-[10px] opacity-60">VND</span></td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-base">credit_card</span> Visa ·· 4421
+                                </div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-success/10 text-success border border-success/40 glow-success">
+<span class="w-1 h-1 rounded-full bg-success"></span> Paid
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-xl">more_vert</span></button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">#EXP-8390</td>
+<td class="px-6 py-4 text-white font-medium">ERP Software Subscription</td>
+<td class="px-6 py-4">
+<span class="bg-outline/10 border border-outline/30 text-outline px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Software</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">15 May 2024</td>
+<td class="px-6 py-4 text-right font-bold text-white">2,400,000 <span class="text-[10px] opacity-60">VND</span></td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-base">credit_card</span> Visa ·· 4421
+                                </div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-success/10 text-success border border-success/40 glow-success">
+<span class="w-1 h-1 rounded-full bg-success"></span> Paid
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-xl">more_vert</span></button>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-xs text-on-surface-variant font-mono">#EXP-8388</td>
+<td class="px-6 py-4 text-white font-medium">Staff Salary</td>
+<td class="px-6 py-4">
+<span class="bg-inverse-primary/10 border border-inverse-primary/30 text-inverse-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Payroll</span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">30 May 2024</td>
+<td class="px-6 py-4 text-right font-bold text-white">8,200,000 <span class="text-[10px] opacity-60">VND</span></td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-base">account_balance</span> Bank Transfer
+                                </div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-warning/10 text-warning border border-warning/40 glow-warning">
+<span class="w-1 h-1 rounded-full bg-warning"></span> Processing
+                                </span>
+</td>
+<td class="px-6 py-4 text-center">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-xl">more_vert</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Pagination -->
+<div class="px-6 py-4 flex items-center justify-between bg-white/[0.02]">
+<p class="text-xs text-on-surface-variant">Showing 1-6 of 24 expenses</p>
+<div class="flex items-center gap-2">
+<button class="p-1 glass-card text-on-surface-variant opacity-50 cursor-not-allowed">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="px-3 py-1 glass-card bg-primary/20 border-primary text-primary text-xs font-bold">1</button>
+<button class="px-3 py-1 glass-card text-on-surface-variant text-xs hover:border-primary transition-all">2</button>
+<button class="px-3 py-1 glass-card text-on-surface-variant text-xs hover:border-primary transition-all">3</button>
+<button class="p-1 glass-card text-on-surface-variant hover:border-primary transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Log New Expense Modal -->
+<div class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" id="expenseModal">
+<!-- Backdrop -->
+<div class="absolute inset-0 bg-background/80 backdrop-blur-md" onclick="toggleModal(false)"></div>
+<!-- Modal Card -->
+<div class="relative w-full max-w-xl glass-card modal-enter overflow-hidden shadow-2xl">
+<div class="px-8 py-6 border-b border-border-glass flex justify-between items-center bg-white/5">
+<h2 class="text-xl font-bold text-white flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">add_circle</span>
+                    Log New Expense
+                </h2>
+<button class="text-on-surface-variant hover:text-error transition-all" onclick="toggleModal(false)">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="p-8 space-y-6">
+<div class="grid grid-cols-2 gap-6">
+<div class="col-span-2">
+<label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Expense Title</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-all" placeholder="e.g., Monthly Fiber Internet" type="text"/>
+</div>
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Category</label>
+<select class="w-full bg-surface-container-low border border-border-glass rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-all appearance-none">
+<option>Rent</option>
+<option>Marketing</option>
+<option>Utilities</option>
+<option>Payroll</option>
+<option>Software</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Date</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-all" type="date"/>
+</div>
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Amount (VND)</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-all" placeholder="0" type="number"/>
+</div>
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Payment Method</label>
+<select class="w-full bg-surface-container-low border border-border-glass rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-all appearance-none">
+<option>Cash</option>
+<option>Bank Transfer</option>
+<option>Visa Card</option>
+<option>E-Wallet</option>
+</select>
+</div>
+<div class="col-span-2">
+<label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Notes</label>
+<textarea class="w-full bg-surface-container-low border border-border-glass rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-all resize-none" placeholder="Optional expense details..." rows="3"></textarea>
+</div>
+</div>
+<div class="flex items-center justify-end gap-4 pt-4">
+<button class="px-6 py-2.5 rounded-full text-on-surface-variant font-bold hover:bg-white/5 transition-all" onclick="toggleModal(false)">Cancel</button>
+<button class="bg-primary text-on-primary font-bold px-10 py-2.5 rounded-full glow-teal active:scale-95 transition-transform" onclick="toggleModal(false)">Save Expense</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function toggleModal(show) {
+            const modal = document.getElementById('expenseModal');
+            if (show) {
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            } else {
+                modal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // Add some micro-interactions for the cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                if(!card.classList.contains('overflow-hidden')) {
+                   card.style.transform = 'translateY(-2px)';
+                }
+                card.style.transition = 'transform 0.2s ease-out';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

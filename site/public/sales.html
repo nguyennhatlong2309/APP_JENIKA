@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Jenika | Sales Orders Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1513;
+            color: #dce4e1;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .glass-surface {
+            background: rgba(17, 22, 37, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glow-teal {
+            box-shadow: 0 0 15px rgba(3, 223, 195, 0.3);
+        }
+
+        .glow-button:hover {
+            box-shadow: 0 0 25px rgba(3, 223, 195, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Custom scrollbar for data-rich feel */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(3, 223, 195, 0.2);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(3, 223, 195, 0.4);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "outline": "#84948f",
+                      "tertiary-fixed-dim": "#ffba4e",
+                      "surface-container-low": "#151d1b",
+                      "tertiary": "#ffdeb3",
+                      "on-secondary-fixed": "#001f28",
+                      "on-primary-fixed-variant": "#005045",
+                      "surface-container-high": "#242c29",
+                      "text-primary": "#FFFFFF",
+                      "on-secondary-container": "#00566a",
+                      "on-surface": "#dce4e1",
+                      "surface-dim": "#0d1513",
+                      "error-container": "#93000a",
+                      "tertiary-fixed": "#ffddb2",
+                      "on-surface-variant": "#bacac5",
+                      "outline-variant": "#3b4a46",
+                      "surface-container-lowest": "#08100e",
+                      "text-variant": "#94A3B8",
+                      "primary-fixed": "#49fcdf",
+                      "primary-container": "#03dfc3",
+                      "secondary": "#a5e7ff",
+                      "surface-glass": "rgba(17, 22, 37, 0.65)",
+                      "tertiary-container": "#ffba4e",
+                      "warning": "#F59E0B",
+                      "surface-container": "#19211f",
+                      "surface": "#0A0E17",
+                      "inverse-primary": "#006b5c",
+                      "inverse-on-surface": "#2a3230",
+                      "background": "#0d1513",
+                      "on-background": "#dce4e1",
+                      "on-tertiary-container": "#724b00",
+                      "success": "#10B981",
+                      "secondary-fixed-dim": "#47d6ff",
+                      "error": "#EF4444",
+                      "on-primary-fixed": "#00201b",
+                      "on-tertiary-fixed": "#291800",
+                      "on-primary": "#00382f",
+                      "on-secondary-fixed-variant": "#004e60",
+                      "on-tertiary": "#442b00",
+                      "surface-bright": "#333b38",
+                      "primary-fixed-dim": "#02dfc3",
+                      "on-secondary": "#003543",
+                      "secondary-container": "#00d2ff",
+                      "surface-tint": "#02dfc3",
+                      "on-primary-container": "#005e51",
+                      "secondary-fixed": "#b6ebff",
+                      "surface-variant": "#2e3634",
+                      "inverse-surface": "#dce4e1",
+                      "on-error": "#690005",
+                      "border-glass": "rgba(255, 255, 255, 0.08)",
+                      "surface-container-highest": "#2e3634",
+                      "on-tertiary-fixed-variant": "#624000",
+                      "on-error-container": "#ffdad6",
+                      "primary": "#49fcdf"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-padding": "24px",
+                      "stack-md": "16px",
+                      "stack-lg": "32px",
+                      "gutter": "16px",
+                      "sidebar-width": "260px",
+                      "stack-sm": "8px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["Inter"],
+                      "label-sm": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "body-md": ["Inter"],
+                      "label-md": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background">
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-screen w-[260px] bg-surface-glass backdrop-blur-[12px] border-r border-border-glass flex flex-col py-6 z-40">
+<div class="px-6 mb-10">
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight font-bold">Jenika</h1>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60">Store Management</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="index.html">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center px-6 py-3 border-l-4 border-primary bg-white/5 text-primary font-bold transition-colors duration-200" href="sales.html">
+<span class="material-symbols-outlined mr-3">shopping_cart</span>
+<span class="font-body-md text-body-md">Sales Orders</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="purchases.html">
+<span class="material-symbols-outlined mr-3">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Purchase Orders</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="inventory.html">
+<span class="material-symbols-outlined mr-3">inventory_2</span>
+<span class="font-body-md text-body-md">Inventory</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="partners.html">
+<span class="material-symbols-outlined mr-3">handshake</span>
+<span class="font-body-md text-body-md">Partners</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="expenses.html">
+<span class="material-symbols-outlined mr-3">payments</span>
+<span class="font-body-md text-body-md">Expenses</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="activity.html">
+<span class="material-symbols-outlined mr-3">history</span>
+<span class="font-body-md text-body-md">Activity Logs</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="settings.html">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<div class="flex items-center p-3 rounded-xl bg-white/5 border border-white/5">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold mr-3 overflow-hidden">
+<img alt="Manager Profile" class="w-full h-full object-cover" data-alt="Professional manager profile portrait with a confident expression, sharp business attire, set against a blurred high-tech office background with cool blue and teal lighting. The aesthetic is clean, sophisticated, and fits a high-end corporate fintech dashboard environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXrC4Mo6UPDf5pn6OkrwyZfp4u3LGXIvmKWlBdwzb2g7fWZmZC2Zo7lqWcoOXoTneDvb2vaH0Pk1kez-M70XWgT_4yvFaniOV9LG8hrOzksrQOM6OsEpEfoOs3DDg0ZL2e3OI6KMcxmjn4ACqIZ-3HU-_8EOwLGhwHleH5sfXivxHEGxlPPQEsNl4ptKjwkEIEn2XSvYO8M736PlvNZc_5wg7G-Zjcv_tEiCaROtSOrxWc1A0yVXOYK5qOVVjQY5AnjOV3AAkDdpQ"/>
+</div>
+<div class="overflow-hidden">
+<p class="text-sm font-semibold truncate">Alex Nguyen</p>
+<p class="text-xs text-on-surface-variant truncate">Store Manager</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 w-[calc(100%-260px)] h-16 bg-transparent backdrop-blur-[8px] border-b border-border-glass flex justify-between items-center px-container-padding z-30">
+<div class="flex items-center w-full max-w-xl">
+<div class="relative w-full group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container-lowest/50 border border-border-glass rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" placeholder="Search orders, customers, or devices..." type="text"/>
+</div>
+</div>
+<div class="flex items-center space-x-6">
+<button class="relative text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full border-2 border-background"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">help</span>
+</button>
+<div class="h-8 w-[1px] bg-border-glass"></div>
+<div class="flex items-center space-x-2">
+<span class="text-sm font-medium">Jenika Store</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[260px] pt-24 px-container-padding pb-12">
+<!-- Header Section -->
+<div class="flex justify-between items-end mb-stack-lg">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-text-primary">Sales Orders</h2>
+<p class="text-text-variant font-body-md mt-1">Manage and track your device sales and fulfillment status.</p>
+</div>
+<button class="glow-button flex items-center bg-primary text-on-primary font-bold px-6 py-3 rounded-lg transition-all glow-teal" onclick="toggleSidePanel()">
+<span class="material-symbols-outlined mr-2">add</span>
+                Create Sales Order
+            </button>
+</div>
+<!-- Stats Row -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-stack-lg">
+<div class="glass-surface p-5 rounded-xl">
+<p class="text-text-variant text-label-sm uppercase tracking-wider mb-2">Total Sales Revenue</p>
+<div class="flex items-end justify-between">
+<h3 class="text-2xl font-bold text-text-primary">384,500,000 <span class="text-xs font-normal opacity-60">VND</span></h3>
+<span class="text-success text-xs font-bold flex items-center mb-1">
+<span class="material-symbols-outlined text-sm mr-1">trending_up</span> +12%
+                    </span>
+</div>
+</div>
+<div class="glass-surface p-5 rounded-xl">
+<p class="text-text-variant text-label-sm uppercase tracking-wider mb-2">Active Invoices</p>
+<div class="flex items-end justify-between">
+<div>
+<h3 class="text-2xl font-bold text-text-primary">18 <span class="text-xs font-normal opacity-60">Invoices</span></h3>
+<p class="text-[10px] text-text-variant mt-1">4 processing, 2 unpaid</p>
+</div>
+<span class="material-symbols-outlined text-primary-container opacity-40">receipt_long</span>
+</div>
+</div>
+<div class="glass-surface p-5 rounded-xl">
+<p class="text-text-variant text-label-sm uppercase tracking-wider mb-2">Avg. Order Value</p>
+<div class="flex items-end justify-between">
+<h3 class="text-2xl font-bold text-text-primary">13,730,000 <span class="text-xs font-normal opacity-60">VND</span></h3>
+<span class="material-symbols-outlined text-secondary opacity-40">analytics</span>
+</div>
+</div>
+<div class="glass-surface p-5 rounded-xl flex items-center">
+<div class="flex-1">
+<p class="text-text-variant text-label-sm uppercase tracking-wider mb-2">Completion Rate</p>
+<h3 class="text-2xl font-bold text-text-primary">88%</h3>
+</div>
+<div class="relative w-12 h-12">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-white/10" cx="24" cy="24" fill="transparent" r="20" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-primary" cx="24" cy="24" fill="transparent" r="20" stroke="currentColor" stroke-dasharray="125.6" stroke-dashoffset="15" stroke-width="4"></circle>
+</svg>
+</div>
+</div>
+</div>
+<!-- Orders Table Container -->
+<section class="glass-surface rounded-2xl overflow-hidden">
+<!-- Filter Bar -->
+<div class="p-6 border-b border-border-glass flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center space-x-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">filter_list</span>
+<select class="bg-surface-container-lowest/50 border border-border-glass rounded-lg pl-9 pr-8 py-2 text-sm appearance-none focus:outline-none focus:ring-1 focus:ring-primary/50">
+<option>All Orders</option>
+<option>Fulfillment: Processing</option>
+<option>Fulfillment: Completed</option>
+</select>
+</div>
+<div class="relative">
+<select class="bg-surface-container-lowest/50 border border-border-glass rounded-lg px-4 py-2 text-sm appearance-none focus:outline-none focus:ring-1 focus:ring-primary/50">
+<option>Payment: All</option>
+<option>Payment: Paid</option>
+<option>Payment: Unpaid</option>
+</select>
+</div>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-text-variant">Showing 1-6 of 124 orders</span>
+<div class="flex space-x-1">
+<button class="p-1 hover:bg-white/5 rounded"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="p-1 hover:bg-white/5 rounded"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</div>
+<!-- Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="text-text-variant text-label-sm uppercase tracking-wider border-b border-border-glass">
+<th class="px-6 py-4 font-semibold">Order ID</th>
+<th class="px-6 py-4 font-semibold">Customer Name</th>
+<th class="px-6 py-4 font-semibold">Date</th>
+<th class="px-6 py-4 font-semibold">Devices Purchased</th>
+<th class="px-6 py-4 font-semibold">Total Amount</th>
+<th class="px-6 py-4 font-semibold">Payment</th>
+<th class="px-6 py-4 font-semibold">Fulfillment</th>
+<th class="px-6 py-4 font-semibold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-glass">
+<!-- Row 1 -->
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-6 py-5 font-mono text-sm text-primary">#SO-9234</td>
+<td class="px-6 py-5 font-medium">Hoang Minh Duc</td>
+<td class="px-6 py-5 text-sm text-text-variant">Oct 12, 2023</td>
+<td class="px-6 py-5 text-sm">
+<p>1x iPhone 15 Pro Max</p>
+<p class="text-[10px] opacity-50">2x AirPods Pro 2</p>
+</td>
+<td class="px-6 py-5 font-bold">42,900,000 ₫</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-success/10 border border-success text-success glow-sm" style="box-shadow: 0 0 10px rgba(16, 185, 129, 0.2)">Paid</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-success/10 border border-success text-success">Completed</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary/10 rounded-lg text-on-surface-variant group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-6 py-5 font-mono text-sm text-primary">#SO-9235</td>
+<td class="px-6 py-5 font-medium">Nguyen Thi Lan</td>
+<td class="px-6 py-5 text-sm text-text-variant">Oct 12, 2023</td>
+<td class="px-6 py-5 text-sm">
+<p>1x MacBook Air M2</p>
+</td>
+<td class="px-6 py-5 font-bold">28,500,000 ₫</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-warning/10 border border-warning text-warning" style="box-shadow: 0 0 10px rgba(245, 158, 11, 0.2)">Partial</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-secondary-container/10 border border-secondary text-secondary">Processing</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary/10 rounded-lg text-on-surface-variant group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-6 py-5 font-mono text-sm text-primary">#SO-9236</td>
+<td class="px-6 py-5 font-medium">Tran Van Nam</td>
+<td class="px-6 py-5 text-sm text-text-variant">Oct 11, 2023</td>
+<td class="px-6 py-5 text-sm">
+<p>3x iPad Pro 11-inch</p>
+<p class="text-[10px] opacity-50">3x Apple Pencil 2</p>
+</td>
+<td class="px-6 py-5 font-bold">67,200,000 ₫</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-error/10 border border-error text-error" style="box-shadow: 0 0 10px rgba(239, 68, 68, 0.2)">Unpaid</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-secondary-container/10 border border-secondary text-secondary">Processing</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary/10 rounded-lg text-on-surface-variant group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-6 py-5 font-mono text-sm text-primary">#SO-9237</td>
+<td class="px-6 py-5 font-medium">Le Van Cuong</td>
+<td class="px-6 py-5 text-sm text-text-variant">Oct 11, 2023</td>
+<td class="px-6 py-5 text-sm">
+<p>1x Apple Watch Ultra 2</p>
+</td>
+<td class="px-6 py-5 font-bold">21,990,000 ₫</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-success/10 border border-success text-success">Paid</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-success/10 border border-success text-success">Completed</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary/10 rounded-lg text-on-surface-variant group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-6 py-5 font-mono text-sm text-primary">#SO-9238</td>
+<td class="px-6 py-5 font-medium">Pham Minh Anh</td>
+<td class="px-6 py-5 text-sm text-text-variant">Oct 10, 2023</td>
+<td class="px-6 py-5 text-sm">
+<p>2x iPhone 15</p>
+<p class="text-[10px] opacity-50">2x MagSafe Case</p>
+</td>
+<td class="px-6 py-5 font-bold">48,400,000 ₫</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-success/10 border border-success text-success">Paid</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-success/10 border border-success text-success">Completed</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary/10 rounded-lg text-on-surface-variant group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-6 py-5 font-mono text-sm text-primary">#SO-9239</td>
+<td class="px-6 py-5 font-medium">Vu Hoang Yen</td>
+<td class="px-6 py-5 text-sm text-text-variant">Oct 10, 2023</td>
+<td class="px-6 py-5 text-sm">
+<p>1x AirPods Max</p>
+</td>
+<td class="px-6 py-5 font-bold">13,900,000 ₫</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-error/10 border border-error text-error" style="box-shadow: 0 0 10px rgba(239, 68, 68, 0.2)">Cancelled</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-error/10 border border-error text-error">Cancelled</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary/10 rounded-lg text-on-surface-variant group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-6 text-center">
+<button class="text-primary text-sm font-bold hover:underline">View All Sales Orders</button>
+</div>
+</section>
+</main>
+<!-- Create New Sales Order Side Panel Overlay -->
+<div class="fixed top-0 right-0 h-screen w-full md:w-[450px] glass-surface translate-x-full transition-transform duration-500 ease-in-out z-50 p-8 flex flex-col shadow-2xl" id="sidePanel">
+<div class="flex justify-between items-center mb-10">
+<h3 class="font-headline-md text-headline-md font-bold text-text-primary">Create New Sales Order</h3>
+<button class="p-2 hover:bg-white/10 rounded-full text-on-surface-variant" onclick="toggleSidePanel()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<form class="flex-1 overflow-y-auto space-y-6 pr-2">
+<!-- Customer Section -->
+<div>
+<label class="block text-label-sm uppercase tracking-wider text-text-variant mb-2">Customer Name</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-xl px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary/50 outline-none transition-all" placeholder="Enter customer name..." type="text"/>
+</div>
+<!-- Device Selection -->
+<div>
+<label class="block text-label-sm uppercase tracking-wider text-text-variant mb-3">Device Selection</label>
+<div class="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scroll">
+<label class="flex items-center p-3 rounded-lg bg-white/5 border border-white/5 cursor-pointer hover:border-primary/50 transition-all">
+<input class="rounded border-border-glass bg-transparent text-primary focus:ring-primary mr-3" type="checkbox"/>
+<span class="flex-1 text-sm">iPhone 15 Pro Max - 256GB</span>
+<span class="text-xs font-mono text-text-variant">34.9M ₫</span>
+</label>
+<label class="flex items-center p-3 rounded-lg bg-white/5 border border-white/5 cursor-pointer hover:border-primary/50 transition-all">
+<input class="rounded border-border-glass bg-transparent text-primary focus:ring-primary mr-3" type="checkbox"/>
+<span class="flex-1 text-sm">AirPods Pro 2</span>
+<span class="text-xs font-mono text-text-variant">5.9M ₫</span>
+</label>
+<label class="flex items-center p-3 rounded-lg bg-white/5 border border-white/5 cursor-pointer hover:border-primary/50 transition-all">
+<input class="rounded border-border-glass bg-transparent text-primary focus:ring-primary mr-3" type="checkbox"/>
+<span class="flex-1 text-sm">Apple Watch Ultra 2</span>
+<span class="text-xs font-mono text-text-variant">21.9M ₫</span>
+</label>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block text-label-sm uppercase tracking-wider text-text-variant mb-2">Quantity</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-xl px-4 py-3 text-sm outline-none" type="number" value="1"/>
+</div>
+<div>
+<label class="block text-label-sm uppercase tracking-wider text-text-variant mb-2">Price Override</label>
+<input class="w-full bg-surface-container-low border border-border-glass rounded-xl px-4 py-3 text-sm outline-none" placeholder="Auto-calculated" type="text"/>
+</div>
+</div>
+<div>
+<label class="block text-label-sm uppercase tracking-wider text-text-variant mb-2">Payment Method</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="border border-primary bg-primary/10 py-3 rounded-xl text-sm font-bold text-primary" type="button">Bank Transfer</button>
+<button class="border border-border-glass py-3 rounded-xl text-sm font-medium hover:bg-white/5 transition-all" type="button">Cash</button>
+</div>
+</div>
+<div>
+<label class="block text-label-sm uppercase tracking-wider text-text-variant mb-2">Status</label>
+<select class="w-full bg-surface-container-low border border-border-glass rounded-xl px-4 py-3 text-sm outline-none appearance-none">
+<option>Processing</option>
+<option>Pending Payment</option>
+<option>Awaiting Shipment</option>
+</select>
+</div>
+</form>
+<div class="pt-8 mt-auto border-t border-border-glass flex flex-col gap-3">
+<div class="flex justify-between items-center px-2">
+<span class="text-text-variant">Estimated Total</span>
+<span class="text-xl font-bold text-primary">0 ₫</span>
+</div>
+<button class="glow-button w-full bg-primary text-on-primary font-bold py-4 rounded-xl transition-all glow-teal">
+                Confirm &amp; Print Invoice
+            </button>
+</div>
+</div>
+<!-- Script for interaction -->
+<script>
+        function toggleSidePanel() {
+            const panel = document.getElementById('sidePanel');
+            if (panel.classList.contains('translate-x-full')) {
+                panel.classList.remove('translate-x-full');
+                panel.classList.add('translate-x-0');
+            } else {
+                panel.classList.add('translate-x-full');
+                panel.classList.remove('translate-x-0');
+            }
+        }
+
+        // Close on ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const panel = document.getElementById('sidePanel');
+                if (panel.classList.contains('translate-x-0')) {
+                    toggleSidePanel();
+                }
+            }
+        });
+    </script>
+</body></html>

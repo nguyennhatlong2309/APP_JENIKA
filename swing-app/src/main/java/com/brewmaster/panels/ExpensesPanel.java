@@ -29,7 +29,11 @@ public class ExpensesPanel extends JPanel {
     private DefaultTableModel tableModel;
     private StyledTable table;
     private Pagination pagination;
-    private JComboBox<String> categoryFilter;
+    private JButton categoryFilterBtn;
+    private JPopupMenu categoryMenu;
+    private JTextField categorySearchField;
+    private JPanel categoryCheckBoxPanel;
+    private final java.util.Map<String, JCheckBox> categoryCheckboxes = new java.util.LinkedHashMap<>();
     private DatePicker dpFrom;
     private DatePicker dpTo;
 
@@ -148,12 +152,74 @@ public class ExpensesPanel extends JPanel {
                 BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
                 new EmptyBorder(8, 12, 8, 12)));
 
-        categoryFilter = new JComboBox<>(new String[]{"Tất cả danh mục"});
-        categoryFilter.setFont(AppTheme.FONT_BODY_MD);
-        categoryFilter.setPreferredSize(new Dimension(200, 32));
-        categoryFilter.addActionListener(e -> {
-            currentPage = 1;
-            loadData();
+        categoryFilterBtn = new JButton("Danh mục ↓");
+        categoryFilterBtn.setFont(AppTheme.FONT_BODY_MD);
+        categoryFilterBtn.setPreferredSize(new Dimension(170, 32));
+        categoryFilterBtn.setBackground(AppTheme.SURFACE_LOW);
+        categoryFilterBtn.setForeground(AppTheme.ON_SURFACE);
+        categoryFilterBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)));
+        categoryFilterBtn.setFocusPainted(false);
+        categoryFilterBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        categoryFilterBtn.setHorizontalAlignment(SwingConstants.LEFT);
+
+        categoryMenu = new JPopupMenu();
+        categoryMenu.setBackground(AppTheme.SURFACE_LOW);
+        categoryMenu.setBorder(BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1));
+        categoryMenu.setLayout(new BorderLayout());
+
+        JPanel popupContent = new JPanel(new BorderLayout(0, 6));
+        popupContent.setBackground(AppTheme.SURFACE_LOW);
+        popupContent.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        categorySearchField = new JTextField();
+        categorySearchField.setFont(AppTheme.FONT_BODY_MD);
+        categorySearchField.putClientProperty("JTextField.placeholderText", " Tìm danh mục...");
+        categorySearchField.setPreferredSize(new Dimension(220, 32));
+        categorySearchField.setBackground(AppTheme.SURFACE_MED);
+        categorySearchField.setForeground(AppTheme.ON_SURFACE);
+        categorySearchField.setCaretColor(AppTheme.ON_SURFACE);
+        categorySearchField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.OUTLINE_VARIANT, 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+
+        categoryCheckBoxPanel = new JPanel();
+        categoryCheckBoxPanel.setLayout(new BoxLayout(categoryCheckBoxPanel, BoxLayout.Y_AXIS));
+        categoryCheckBoxPanel.setBackground(AppTheme.SURFACE_LOW);
+
+        JScrollPane scrollPane = new JScrollPane(categoryCheckBoxPanel);
+        scrollPane.setPreferredSize(new Dimension(220, 200));
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(12);
+
+        popupContent.add(categorySearchField, BorderLayout.NORTH);
+        popupContent.add(scrollPane, BorderLayout.CENTER);
+        categoryMenu.add(popupContent);
+
+        // Document Listener for filtering categories
+        categorySearchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+
+            private void filter() {
+                String text = categorySearchField.getText().trim().toLowerCase();
+                categoryCheckBoxPanel.removeAll();
+                for (JCheckBox cb : categoryCheckboxes.values()) {
+                    if (text.isEmpty() || cb.getText().toLowerCase().contains(text)) {
+                        categoryCheckBoxPanel.add(cb);
+                    }
+                }
+                scrollPane.getVerticalScrollBar().setValue(0);
+                categoryCheckBoxPanel.revalidate();
+                categoryCheckBoxPanel.repaint();
+            }
+        });
+
+        categoryFilterBtn.addActionListener(e -> {
+            categoryMenu.show(categoryFilterBtn, 0, categoryFilterBtn.getHeight());
+            categorySearchField.requestFocusInWindow();
         });
 
         dpFrom = new DatePicker();
@@ -179,16 +245,21 @@ public class ExpensesPanel extends JPanel {
         refreshBtn.setBorderPainted(true);
         refreshBtn.setFocusPainted(false);
         refreshBtn.addActionListener(e -> {
-            categoryFilter.setSelectedIndex(0);
+            if (categorySearchField != null) {
+                categorySearchField.setText("");
+            }
+            for (JCheckBox cb : categoryCheckboxes.values()) {
+                cb.setSelected(false);
+            }
+            updateCategoryFilterButtonText();
             dpFrom.setValue(LocalDate.now().withDayOfMonth(1));
             dpTo.setValue(LocalDate.now());
             currentPage = 1;
-            reloadCategoryFilter();
             loadData();
         });
 
         p.add(label("Danh mục:"));
-        p.add(categoryFilter);
+        p.add(categoryFilterBtn);
         p.add(label("Từ ngày:"));
         p.add(dpFrom);
         p.add(label("Đến ngày:"));
@@ -200,25 +271,51 @@ public class ExpensesPanel extends JPanel {
         return p;
     }
 
-    /** Load danh mục vào combo lọc */
+    /** Load danh mục vào panel lọc */
     private void reloadCategoryFilter() {
-        Object prevCat = categoryFilter != null ? categoryFilter.getSelectedItem() : null;
+        // Save previously selected categories
+        java.util.Set<String> prevSelected = new java.util.HashSet<>();
+        for (java.util.Map.Entry<String, JCheckBox> entry : categoryCheckboxes.entrySet()) {
+            if (entry.getValue().isSelected()) {
+                prevSelected.add(entry.getKey());
+            }
+        }
+
+        categoryCheckboxes.clear();
+        if (categoryCheckBoxPanel != null) {
+            categoryCheckBoxPanel.removeAll();
+        }
 
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String sql = "SELECT DISTINCT ten FROM loai_thu_chi ORDER BY ten";
 
-            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
-            model.addElement("Tất cả danh mục");
             try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
-                while (rs.next())
-                    model.addElement(rs.getString("ten"));
+                while (rs.next()) {
+                    String catName = rs.getString("ten");
+                    JCheckBox cb = new JCheckBox(catName);
+                    cb.setFont(AppTheme.FONT_BODY_MD);
+                    cb.setForeground(AppTheme.ON_SURFACE);
+                    cb.setBackground(AppTheme.SURFACE_LOW);
+                    if (prevSelected.contains(catName)) {
+                        cb.setSelected(true);
+                    }
+                    cb.addActionListener(e -> {
+                        currentPage = 1;
+                        updateCategoryFilterButtonText();
+                        loadData();
+                    });
+                    categoryCheckboxes.put(catName, cb);
+                    if (categoryCheckBoxPanel != null) {
+                        categoryCheckBoxPanel.add(cb);
+                    }
+                }
             }
-            if (categoryFilter != null) {
-                categoryFilter.setModel(model);
-                if (prevCat != null)
-                    categoryFilter.setSelectedItem(prevCat);
+            if (categoryCheckBoxPanel != null) {
+                categoryCheckBoxPanel.revalidate();
+                categoryCheckBoxPanel.repaint();
             }
+            updateCategoryFilterButtonText();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -305,7 +402,8 @@ public class ExpensesPanel extends JPanel {
                 int row = table.rowAtPoint(evt.getPoint());
                 int col = table.columnAtPoint(evt.getPoint());
                 if (row >= 0) {
-                    Object maPhieu = tableModel.getValueAt(row, 0);
+                    int modelRow = table.convertRowIndexToModel(row);
+                    Object maPhieu = tableModel.getValueAt(modelRow, 0);
                     if (maPhieu == null)
                         return;
                     try {
@@ -318,7 +416,9 @@ public class ExpensesPanel extends JPanel {
                                 openEditDialog(id);
                             }
                         } else {
-                            openViewDialog(id);
+                            if (evt.getClickCount() == 2) {
+                                openViewDialog(id);
+                            }
                         }
                     } catch (NumberFormatException ignored) {
                     }
@@ -355,12 +455,23 @@ public class ExpensesPanel extends JPanel {
                 try {
                     Connection conn = DatabaseManager.getInstance().getConnection();
 
-                    String catVal = categoryFilter != null ? (String) categoryFilter.getSelectedItem()
-                            : "Tất cả danh mục";
+                    java.util.List<String> selectedCats = new java.util.ArrayList<>();
+                    if (categoryCheckboxes != null) {
+                        for (java.util.Map.Entry<String, JCheckBox> entry : categoryCheckboxes.entrySet()) {
+                            if (entry.getValue().isSelected()) {
+                                selectedCats.add(entry.getKey());
+                            }
+                        }
+                    }
 
                     StringBuilder cond = new StringBuilder(" WHERE 1=1");
-                    if (catVal != null && !catVal.equals("Tất cả danh mục")) {
-                        cond.append(" AND ltc.ten = '").append(catVal.replace("'", "''")).append("'");
+                    if (!selectedCats.isEmpty() && selectedCats.size() < categoryCheckboxes.size()) {
+                        cond.append(" AND ltc.ten IN (");
+                        for (int i = 0; i < selectedCats.size(); i++) {
+                            if (i > 0) cond.append(",");
+                            cond.append("'").append(selectedCats.get(i).replace("'", "''")).append("'");
+                        }
+                        cond.append(")");
                     }
 
                     if (dpFrom != null && dpFrom.getValue() != null) {
@@ -373,7 +484,7 @@ public class ExpensesPanel extends JPanel {
                     // Summary stats
                     String summarySQL = "SELECT " +
                             "  COALESCE(SUM(tc.tien_thu),0) AS thu," +
-                            "  COALESCE(SUM(tc.tien_chi),0) AS chi" +
+                            "  COALESCE(SUM(COALESCE(tc.tien_chi, 0) + COALESCE((SELECT SUM(ct.so_luong * sp.gia_nhap_hien_tai) FROM chi_tiet_ban_hang ct JOIN san_pham sp ON ct.id_san_pham = sp.id WHERE ct.id_ban_hang = tc.id_ban_hang), 0)), 0) AS chi" +
                             " FROM thu_chi tc" +
                             " LEFT JOIN loai_thu_chi ltc ON tc.id_loai = ltc.id" +
                             cond.toString();
@@ -403,7 +514,9 @@ public class ExpensesPanel extends JPanel {
                             + " IFNULL(ltc.ten, '---') AS ten_loai,"
                             + " IFNULL(tc.mo_ta, '') AS mo_ta,"
                             + " tc.tien_thu,"
-                            + " tc.tien_chi,"
+                            + " (CASE WHEN tc.tien_chi IS NULL AND tc.id_ban_hang IS NULL THEN NULL "
+                            + "       ELSE COALESCE(tc.tien_chi, 0) + COALESCE((SELECT SUM(ct.so_luong * sp.gia_nhap_hien_tai) FROM chi_tiet_ban_hang ct JOIN san_pham sp ON ct.id_san_pham = sp.id WHERE ct.id_ban_hang = tc.id_ban_hang), 0) "
+                            + "  END) AS tien_chi,"
                             + " IFNULL(nv.ten_nhan_vien, '---') AS ten_nv"
                             + " FROM thu_chi tc"
                             + " LEFT JOIN loai_thu_chi ltc ON tc.id_loai = ltc.id"
@@ -544,5 +657,23 @@ public class ExpensesPanel extends JPanel {
         b.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         b.setForeground(color);
         return b;
+    }
+
+    private void updateCategoryFilterButtonText() {
+        java.util.List<String> selected = new java.util.ArrayList<>();
+        for (JCheckBox cb : categoryCheckboxes.values()) {
+            if (cb.isSelected()) {
+                selected.add(cb.getText());
+            }
+        }
+        if (selected.isEmpty()) {
+            categoryFilterBtn.setText("Danh mục ↓");
+        } else if (selected.size() == categoryCheckboxes.size()) {
+            categoryFilterBtn.setText("Tất cả danh mục ↓");
+        } else if (selected.size() == 1) {
+            categoryFilterBtn.setText(selected.get(0) + " ↓");
+        } else {
+            categoryFilterBtn.setText(selected.size() + " danh mục ↓");
+        }
     }
 }

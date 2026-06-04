@@ -79,6 +79,7 @@ public class SalesOrderDialog extends JDialog {
 
     private final NumberFormat vnd = NumberFormat.getNumberInstance(new Locale("vi", "VN"));
     private String lastSelectedKhach = null;
+    private boolean isUpdatingTable = false;
 
     // ═════════════════════════ Constructors ══════════════════════
 
@@ -307,7 +308,7 @@ public class SalesOrderDialog extends JDialog {
                     Integer spId = spMap.get(sel);
                     if (spId != null) {
                         if (row >= 0) {
-                            long gia = fetchGiaBan(spId);
+                            long gia = fetchGiaNhap(spId);
                             giftTableModel.setValueAt(spUnitMap.get(sel), row, 1);
                             giftTableModel.setValueAt(vnd.format(gia), row, 3);
                             updateGiftThanhTien(row);
@@ -317,6 +318,29 @@ public class SalesOrderDialog extends JDialog {
                 return ok;
             }
         });
+
+        // ── Column 3: Đơn giá (định dạng động) ──
+        JTextField tfGiaEditorGift = new JTextField();
+        tfGiaEditorGift.setFont(AppTheme.FONT_BODY_MD);
+        tfGiaEditorGift.setBackground(AppTheme.SURFACE_MED);
+        tfGiaEditorGift.setForeground(AppTheme.ON_SURFACE);
+        tfGiaEditorGift.setCaretColor(AppTheme.ON_SURFACE);
+        tfGiaEditorGift.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.PRIMARY_CONTAINER, 1),
+                new EmptyBorder(6, 10, 6, 10)));
+        tfGiaEditorGift.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                formatTextFieldMarkup(tfGiaEditorGift, vnd);
+            }
+        });
+        tfGiaEditorGift.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                formatTextFieldMarkup(tfGiaEditorGift, vnd);
+            }
+        });
+        giftTable.getColumnModel().getColumn(3).setCellEditor(new DefaultCellEditor(tfGiaEditorGift));
 
         // ── Column 5: Nút xóa dòng ──
         giftTable.getColumnModel().getColumn(5).setCellRenderer(new DeleteBtnRenderer());
@@ -566,6 +590,18 @@ public class SalesOrderDialog extends JDialog {
                 updatePaymentStats();
             }
         });
+        tfTienDaThanhToan.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                formatTextFieldMarkup(tfTienDaThanhToan, vnd);
+            }
+        });
+        tfTienDaThanhToan.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                formatTextFieldMarkup(tfTienDaThanhToan, vnd);
+            }
+        });
 
         // Add fields to grid in the requested order:
         // Row 1
@@ -696,6 +732,29 @@ public class SalesOrderDialog extends JDialog {
                 return ok;
             }
         });
+
+        // ── Column 3: Đơn giá bán (định dạng động) ──
+        JTextField tfGiaEditor = new JTextField();
+        tfGiaEditor.setFont(AppTheme.FONT_BODY_MD);
+        tfGiaEditor.setBackground(AppTheme.SURFACE_MED);
+        tfGiaEditor.setForeground(AppTheme.ON_SURFACE);
+        tfGiaEditor.setCaretColor(AppTheme.ON_SURFACE);
+        tfGiaEditor.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(AppTheme.PRIMARY_CONTAINER, 1),
+                new EmptyBorder(6, 10, 6, 10)));
+        tfGiaEditor.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                formatTextFieldMarkup(tfGiaEditor, vnd);
+            }
+        });
+        tfGiaEditor.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                formatTextFieldMarkup(tfGiaEditor, vnd);
+            }
+        });
+        productTable.getColumnModel().getColumn(3).setCellEditor(new DefaultCellEditor(tfGiaEditor));
 
         // ── Column 5: Nút xóa dòng ──
         productTable.getColumnModel().getColumn(5).setCellRenderer(new DeleteBtnRenderer());
@@ -880,15 +939,18 @@ public class SalesOrderDialog extends JDialog {
                     nvMap.put(rs.getString("ten_nhan_vien"), rs.getInt("id"));
             }
             // Sản phẩm
-            String spSql = "SELECT sp.id, sp.ten_san_pham, dv.ten_don_vi FROM san_pham sp "
+            String spSql = "SELECT sp.id, sp.ten_san_pham, sp.gia_nhap_hien_tai, dv.ten_don_vi FROM san_pham sp "
                          + "LEFT JOIN don_vi_tinh dv ON sp.id_don_vi = dv.id "
-                         + "ORDER BY sp.ten_san_pham";
+                         + "WHERE sp.bi_xoa = 0 "
+                         + "ORDER BY sp.ten_san_pham, sp.gia_nhap_hien_tai";
             try (Statement st = conn.createStatement();
                     ResultSet rs = st.executeQuery(spSql)) {
                 while (rs.next()) {
                     String tenSp = rs.getString("ten_san_pham");
-                    spMap.put(tenSp, rs.getInt("id"));
-                    spUnitMap.put(tenSp, rs.getString("ten_don_vi") != null ? rs.getString("ten_don_vi") : "Cái");
+                    long giaNhap = rs.getLong("gia_nhap_hien_tai");
+                    String spDisplay = tenSp + " (Giá nhập: " + vnd.format(giaNhap) + " ₫)";
+                    spMap.put(spDisplay, rs.getInt("id"));
+                    spUnitMap.put(spDisplay, rs.getString("ten_don_vi") != null ? rs.getString("ten_don_vi") : "Cái");
                 }
             }
         } catch (Exception ex) {
@@ -933,7 +995,7 @@ public class SalesOrderDialog extends JDialog {
                     String trangThai = rs.getString("trang_thai");
                     selectComboItem(cbTrangThai, trangThai);
                     // Tiền đã thanh toán
-                    tfTienDaThanhToan.setText(String.valueOf(rs.getLong("tien_da_thanh_toan")));
+                    tfTienDaThanhToan.setText(vnd.format(rs.getLong("tien_da_thanh_toan")));
                     // Ghi chú
                     String ghiChu = rs.getString("ghi_chu");
                     if (ghiChu != null) tfGhiChu.setText(ghiChu);
@@ -941,7 +1003,7 @@ public class SalesOrderDialog extends JDialog {
             }
 
             // Chi tiết sản phẩm mua (is_gift = 0)
-            String detailSql = "SELECT ct.*, sp.ten_san_pham, dv.ten_don_vi AS sp_don_vi FROM chi_tiet_ban_hang ct"
+            String detailSql = "SELECT ct.*, sp.ten_san_pham, sp.gia_nhap_hien_tai, dv.ten_don_vi AS sp_don_vi FROM chi_tiet_ban_hang ct"
                     + " JOIN san_pham sp ON ct.id_san_pham = sp.id"
                     + " LEFT JOIN don_vi_tinh dv ON sp.id_don_vi = dv.id"
                     + " WHERE ct.id_ban_hang = ? AND ct.is_gift = 0";
@@ -956,8 +1018,11 @@ public class SalesOrderDialog extends JDialog {
                     if (donVi == null) {
                         donVi = "Cái";
                     }
+                    String tenSp = rs.getString("ten_san_pham");
+                    long giaNhap = rs.getLong("gia_nhap_hien_tai");
+                    String spDisplay = tenSp + " (Giá nhập: " + vnd.format(giaNhap) + " ₫)";
                     addProductRow(
-                            rs.getString("ten_san_pham"),
+                            spDisplay,
                             donVi,
                             rs.getInt("so_luong"),
                             rs.getLong("gia_ban"),
@@ -966,7 +1031,7 @@ public class SalesOrderDialog extends JDialog {
             }
 
             // Chi tiết quà tặng (is_gift = 1)
-            String giftSql = "SELECT ct.*, sp.ten_san_pham, dv.ten_don_vi AS sp_don_vi FROM chi_tiet_ban_hang ct"
+            String giftSql = "SELECT ct.*, sp.ten_san_pham, sp.gia_nhap_hien_tai, dv.ten_don_vi AS sp_don_vi FROM chi_tiet_ban_hang ct"
                     + " JOIN san_pham sp ON ct.id_san_pham = sp.id"
                     + " LEFT JOIN don_vi_tinh dv ON sp.id_don_vi = dv.id"
                     + " WHERE ct.id_ban_hang = ? AND ct.is_gift = 1";
@@ -983,8 +1048,11 @@ public class SalesOrderDialog extends JDialog {
                     if (donVi == null) {
                         donVi = "Cái";
                     }
+                    String tenSp = rs.getString("ten_san_pham");
+                    long giaNhap = rs.getLong("gia_nhap_hien_tai");
+                    String spDisplay = tenSp + " (Giá nhập: " + vnd.format(giaNhap) + " ₫)";
                     addGiftRow(
-                            rs.getString("ten_san_pham"),
+                            spDisplay,
                             donVi,
                             rs.getInt("so_luong"),
                             rs.getLong("gia_ban"),
@@ -1045,6 +1113,11 @@ public class SalesOrderDialog extends JDialog {
             Object tenSP = productTableModel.getValueAt(r, 0);
             if (tenSP == null || tenSP.toString().trim().isEmpty()) {
                 warn("Dòng " + (r + 1) + ": Vui lòng chọn sản phẩm.");
+                return;
+            }
+            String nameStr = tenSP.toString().trim();
+            if (!spMap.containsKey(nameStr)) {
+                warn("Dòng " + (r + 1) + ": Sản phẩm \"" + nameStr + "\" không tồn tại trong hệ thống.");
                 return;
             }
             int qty = parseIntSafe(productTableModel.getValueAt(r, 2));
@@ -1133,8 +1206,15 @@ public class SalesOrderDialog extends JDialog {
             if (tenSpObj == null) continue;
             String tenSP = tenSpObj.toString().trim();
             if (tenSP.isEmpty()) continue;
-            int qty = parseIntSafe(giftTableModel.getValueAt(r, 1));
-            if (qty <= 0) continue;
+            if (!spMap.containsKey(tenSP)) {
+                warn("Hàng tặng dòng " + (r + 1) + ": Sản phẩm \"" + tenSP + "\" không tồn tại trong hệ thống.");
+                return;
+            }
+            int qty = parseIntSafe(giftTableModel.getValueAt(r, 2));
+            if (qty <= 0) {
+                warn("Hàng tặng dòng " + (r + 1) + ": Số lượng phải lớn hơn 0.");
+                return;
+            }
             spDemGift.merge(tenSP, 1, Integer::sum);
         }
         for (Map.Entry<String, Integer> entry : spDemGift.entrySet()) {
@@ -1157,7 +1237,7 @@ public class SalesOrderDialog extends JDialog {
             if (tenSP.isEmpty()) continue;
             Integer spId = spMap.get(tenSP);
             if (spId == null) continue;
-            int qty = parseIntSafe(productTableModel.getValueAt(r, 1));
+            int qty = parseIntSafe(productTableModel.getValueAt(r, 2));
             demandMap.merge(spId, new int[]{qty}, (a, b) -> new int[]{a[0] + b[0]});
             spIdToName.put(spId, tenSP);
         }
@@ -1168,7 +1248,7 @@ public class SalesOrderDialog extends JDialog {
             if (tenSP.isEmpty()) continue;
             Integer spId = spMap.get(tenSP);
             if (spId == null) continue;
-            int qty = parseIntSafe(giftTableModel.getValueAt(r, 1));
+            int qty = parseIntSafe(giftTableModel.getValueAt(r, 2));
             if (qty <= 0) continue;
             demandMap.merge(spId, new int[]{qty}, (a, b) -> new int[]{a[0] + b[0]});
             spIdToName.put(spId, tenSP);
@@ -1395,6 +1475,14 @@ public class SalesOrderDialog extends JDialog {
                             upd.setInt(2, spId);
                             upd.executeUpdate();
                         }
+
+                        // Cập nhật giá bán hiện tại của sản phẩm
+                        try (PreparedStatement updPrice = conn.prepareStatement(
+                                "UPDATE san_pham SET gia_ban_hien_tai = ? WHERE id = ?")) {
+                            updPrice.setLong(1, gia);
+                            updPrice.setInt(2, spId);
+                            updPrice.executeUpdate();
+                        }
                     }
                     ps.executeBatch();
                 }
@@ -1578,12 +1666,19 @@ public class SalesOrderDialog extends JDialog {
     }
 
     private void updateThanhTien(int row) {
+        if (isUpdatingTable) return;
         if (row < 0 || row >= productTableModel.getRowCount())
             return;
-        int qty = parseIntSafe(productTableModel.getValueAt(row, 2));
-        long gia = parseLongVnd(productTableModel.getValueAt(row, 3));
-        long thanh = qty * gia;
-        productTableModel.setValueAt(vnd.format(thanh), row, 4);
+        isUpdatingTable = true;
+        try {
+            int qty = parseIntSafe(productTableModel.getValueAt(row, 2));
+            long gia = parseLongVnd(productTableModel.getValueAt(row, 3));
+            long thanh = qty * gia;
+            productTableModel.setValueAt(vnd.format(gia), row, 3);
+            productTableModel.setValueAt(vnd.format(thanh), row, 4);
+        } finally {
+            isUpdatingTable = false;
+        }
     }
 
     private void addGiftRow(String tenSP, String donVi, Integer soLuong, Long giaBan, Long thanhTien) {
@@ -1597,6 +1692,12 @@ public class SalesOrderDialog extends JDialog {
         }
         int qty = soLuong != null ? soLuong : 1;
         long gia = giaBan != null ? giaBan : 0;
+        if (gia == 0 && tenSP == null) {
+            Integer spId = spMap.get(spLabel);
+            if (spId != null) {
+                gia = fetchGiaNhap(spId);
+            }
+        }
         long thanh = thanhTien != null ? thanhTien : qty * gia;
 
         giftTableModel.addRow(new Object[] {
@@ -1610,12 +1711,19 @@ public class SalesOrderDialog extends JDialog {
     }
 
     private void updateGiftThanhTien(int row) {
+        if (isUpdatingTable) return;
         if (row < 0 || row >= giftTableModel.getRowCount())
             return;
-        int qty = parseIntSafe(giftTableModel.getValueAt(row, 2));
-        long gia = parseLongVnd(giftTableModel.getValueAt(row, 3));
-        long thanh = qty * gia;
-        giftTableModel.setValueAt(vnd.format(thanh), row, 4);
+        isUpdatingTable = true;
+        try {
+            int qty = parseIntSafe(giftTableModel.getValueAt(row, 2));
+            long gia = parseLongVnd(giftTableModel.getValueAt(row, 3));
+            long thanh = qty * gia;
+            giftTableModel.setValueAt(vnd.format(gia), row, 3);
+            giftTableModel.setValueAt(vnd.format(thanh), row, 4);
+        } finally {
+            isUpdatingTable = false;
+        }
     }
 
     private void updatePaymentStats() {
@@ -1642,6 +1750,21 @@ public class SalesOrderDialog extends JDialog {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             try (PreparedStatement ps = conn.prepareStatement("SELECT gia_ban_hien_tai FROM san_pham WHERE id=?")) {
+                ps.setInt(1, spId);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next())
+                    return rs.getLong(1);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return 0;
+    }
+
+    private long fetchGiaNhap(int spId) {
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            try (PreparedStatement ps = conn.prepareStatement("SELECT gia_nhap_hien_tai FROM san_pham WHERE id=?")) {
                 ps.setInt(1, spId);
                 ResultSet rs = ps.executeQuery();
                 if (rs.next())
@@ -1870,6 +1993,32 @@ public class SalesOrderDialog extends JDialog {
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
+        }
+    }
+
+    private void formatTextFieldMarkup(JTextField tf, NumberFormat format) {
+        String text = tf.getText();
+        if (text.isEmpty()) return;
+        int caretPos = tf.getCaretPosition();
+        int oldLen = text.length();
+        String cleanString = text.replaceAll("[^0-9]", "");
+        if (cleanString.isEmpty()) {
+            tf.setText("");
+            return;
+        }
+        try {
+            long parsed = Long.parseLong(cleanString);
+            String formatted = format.format(parsed);
+            if (!formatted.equals(text)) {
+                tf.setText(formatted);
+                int newLen = formatted.length();
+                int newCaretPos = caretPos + (newLen - oldLen);
+                if (newCaretPos < 0) newCaretPos = 0;
+                if (newCaretPos > newLen) newCaretPos = newLen;
+                tf.setCaretPosition(newCaretPos);
+            }
+        } catch (NumberFormatException ex) {
+            // Ignore
         }
     }
 

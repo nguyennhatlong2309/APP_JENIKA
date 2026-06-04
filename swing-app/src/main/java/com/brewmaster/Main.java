@@ -2,7 +2,7 @@ package com.brewmaster;
 
 import com.brewmaster.db.DatabaseManager;
 import com.brewmaster.theme.AppTheme;
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.FlatLaf;
 
 import javax.swing.*;
@@ -34,9 +34,9 @@ public class Main {
     }
 
     private static void launch() {
-        // === 1. Cài đặt FlatLaf Dark Theme ===
+        // === 1. Cài đặt FlatLaf Light Theme ===
         try {
-            FlatDarkLaf.setup();
+            FlatLightLaf.setup();
             applyCustomColors();
         } catch (Exception e) {
             System.err.println("Không thể khởi tạo FlatLaf: " + e.getMessage());
@@ -71,6 +71,18 @@ public class Main {
                 if (!hasGhiChu) {
                     stmt.executeUpdate("ALTER TABLE `nhap_hang` ADD COLUMN `ghi_chu` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'Ghi chú thêm cho đơn nhập'");
                     System.out.println("✅ Đã tự động thêm cột ghi_chu vào bảng nhap_hang.");
+                }
+
+                // Tự động kiểm tra và thêm cột bi_xoa cho san_pham nếu chưa có
+                boolean hasBiXoa = false;
+                try (ResultSet rs = stmt.executeQuery("SHOW COLUMNS FROM `san_pham` LIKE 'bi_xoa'")) {
+                    if (rs.next()) {
+                        hasBiXoa = true;
+                    }
+                }
+                if (!hasBiXoa) {
+                    stmt.executeUpdate("ALTER TABLE `san_pham` ADD COLUMN `bi_xoa` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0 = hiển thị, 1 = ẩn/xóa'");
+                    System.out.println("✅ Đã tự động thêm cột bi_xoa vào bảng san_pham.");
                 }
 
                 // Tự động kiểm tra và tạo bảng store_config
