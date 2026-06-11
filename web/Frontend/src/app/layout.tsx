@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Agentation } from "agentation";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "@/components/features/Sidebar";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -42,7 +42,7 @@ export default function RootLayout({
         <Sidebar />
 
         {/* Main section wrapper */}
-        <div className="ml-[260px] flex-1 flex flex-col min-h-screen relative z-10">
+        <div className="ml-[210px] flex-1 flex flex-col min-h-screen relative z-10">
           <main className="flex-1">
             {children}
           </main>

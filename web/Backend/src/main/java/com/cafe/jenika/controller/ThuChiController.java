@@ -27,4 +27,23 @@ public class ThuChiController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ThuChiDTO> updateTransaction(@PathVariable Integer id, @RequestBody ThuChiDTO dto) {
+        try {
+            return ResponseEntity.ok(thuChiService.updateTransaction(id, dto));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTransaction(@PathVariable Integer id) {
+        try {
+            thuChiService.deleteTransaction(id);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }

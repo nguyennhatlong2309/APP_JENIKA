@@ -6,6 +6,10 @@ import com.cafe.jenika.model.ChiTietBanHang;
 import com.cafe.jenika.model.SanPham;
 import com.cafe.jenika.repository.BanHangRepository;
 import com.cafe.jenika.repository.SanPhamRepository;
+import com.cafe.jenika.repository.ThuChiRepository;
+import com.cafe.jenika.repository.LoaiThuChiRepository;
+import com.cafe.jenika.model.ThuChi;
+import com.cafe.jenika.model.LoaiThuChi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +27,12 @@ public class BanHangService {
 
     @Autowired
     private SanPhamRepository sanPhamRepository;
+
+    @Autowired
+    private ThuChiRepository thuChiRepository;
+
+    @Autowired
+    private LoaiThuChiRepository loaiThuChiRepository;
 
     @Autowired
     private NhatKyService nhatKyService;
@@ -141,6 +151,8 @@ public class BanHangService {
                 "Tạo đơn bán hàng mới. Khách hàng: " + (saved.getDoiTac() != null ? saved.getDoiTac().getTen() : "Khách lẻ") + 
                 ". Tổng tiền: " + saved.getTongTien() + "đ");
         
+        syncToThuChi(saved);
+
         return BanHangDTO.fromEntity(saved);
     }
 
@@ -179,6 +191,9 @@ public class BanHangService {
         BanHang saved = banHangRepository.save(order);
         nhatKyService.log("SUA", "ban_hang", "BH-" + order.getId(), 
                 "Cập nhật trạng thái đơn bán từ [" + oldStatus + "] sang [" + status + "]");
+        
+        syncToThuChi(saved);
+
         return BanHangDTO.fromEntity(saved);
     }
 
@@ -310,6 +325,76 @@ public class BanHangService {
                 "Chỉnh sửa đơn bán hàng. Khách hàng: " + (saved.getDoiTac() != null ? saved.getDoiTac().getTen() : "Khách lẻ") +
                 ". Tổng tiền: " + saved.getTongTien() + "đ");
 
+        syncToThuChi(saved);
+
         return BanHangDTO.fromEntity(saved);
+    }
+
+    private void syncToThuChi(BanHang order) {
+        if (order == null || order.getId() == null) return;
+
+        Optional<ThuChi> existingOpt = thuChiRepository.findByBanHang(order);
+
+        if ("Hủy".equalsIgnoreCase(order.getTrangThai())) {
+            existingOpt.ifPresent(thuChi -> {
+                thuChiRepository.delete(thuChi);
+                nhatKyService.log("XOA", "thu_chi", "TC-" + thuChi.getId(),
+                        "Tự động xóa khoản thu do đơn bán hàng BH-" + order.getId() + " bị hủy.");
+            });
+            return;
+        }
+
+        BigDecimal paid = order.getTienDaThanhToan() != null ? order.getTienDaThanhToan() : BigDecimal.ZERO;
+
+        BigDecimal totalGiftCost = BigDecimal.ZERO;
+        if (order.getChiTietBanHangs() != null) {
+            for (ChiTietBanHang detail : order.getChiTietBanHangs()) {
+                if (detail.getIsGift() != null && detail.getIsGift()) {
+                    SanPham sp = detail.getSanPham();
+                    if (sp != null) {
+                        SanPham dbSp = sanPhamRepository.findById(sp.getId()).orElse(sp);
+                        BigDecimal giaNhap = dbSp.getGiaNhapHienTai() != null ? dbSp.getGiaNhapHienTai() : BigDecimal.ZERO;
+                        BigDecimal cost = giaNhap.multiply(BigDecimal.valueOf(detail.getSoLuong()));
+                        totalGiftCost = totalGiftCost.add(cost);
+                    }
+                }
+            }
+        }
+
+        if (paid.compareTo(BigDecimal.ZERO) <= 0 && totalGiftCost.compareTo(BigDecimal.ZERO) <= 0) {
+            existingOpt.ifPresent(thuChi -> {
+                thuChiRepository.delete(thuChi);
+                nhatKyService.log("XOA", "thu_chi", "TC-" + thuChi.getId(),
+                        "Tự động xóa khoản thu chi do đơn bán hàng BH-" + order.getId() + " thay đổi số tiền thanh toán và quà tặng về 0.");
+            });
+            return;
+        }
+
+        ThuChi thuChi = existingOpt.orElseGet(() -> ThuChi.builder()
+                .banHang(order)
+                .build());
+
+        thuChi.setThoiGian(order.getThoiGian() != null ? order.getThoiGian() : LocalDateTime.now());
+        thuChi.setTienThu(paid);
+        thuChi.setTienChi(totalGiftCost);
+        thuChi.setPhuongThuc("Chuyển khoản ngân hàng");
+        thuChi.setTrangThai("Đã chi");
+        thuChi.setNhanVien(order.getNhanVien());
+        
+        LoaiThuChi loai = loaiThuChiRepository.findById(9).orElse(null);
+        thuChi.setLoaiThuChi(loai);
+
+        String customerName = order.getDoiTac() != null ? order.getDoiTac().getTen() : "Khách lẻ";
+        String moTa = "Doanh thu từ đơn bán hàng BH-" + order.getId() + ". Khách hàng: " + customerName;
+        if (totalGiftCost.compareTo(BigDecimal.ZERO) > 0) {
+            moTa += " (Trừ giá trị quà tặng: " + totalGiftCost + "đ)";
+        }
+        thuChi.setMoTa(moTa);
+
+        ThuChi saved = thuChiRepository.save(thuChi);
+
+        String logAction = existingOpt.isPresent() ? "SUA" : "THEM";
+        nhatKyService.log(logAction, "thu_chi", "TC-" + saved.getId(),
+                "Tự động đồng bộ khoản thu chi từ đơn bán hàng BH-" + order.getId() + ". Thu: " + paid + "đ, Chi (quà tặng): " + totalGiftCost + "đ");
     }
 }

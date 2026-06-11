@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "6dfe30880834f77d637db52397f2f7dfd42a36d1",
-  "generatedAt": "2026-06-04T08:06:08.871Z",
+  "gitCommitHash": "26b3fbcb7691bcc0d75bebd20cf30a8a6b7a1263",
+  "generatedAt": "2026-06-04T08:45:27.761Z",
   "files": {
     ".gitattributes": {
       "filePath": ".gitattributes",
@@ -35,37 +35,27 @@
     },
     ".understand-anything/fingerprints.json": {
       "filePath": ".understand-anything/fingerprints.json",
-      "contentHash": "9ca699a2e7e3d8afb854644e0dba1326c7a0b6f9ce4d090d8baf3eedb086568e",
+      "contentHash": "f4fbe731545e3bc8130aac479cc6e049126a6946737f5947b7524c97850d9b46",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 11553,
-      "hasStructuralAnalysis": true
-    },
-    ".understand-anything/intermediate/scan-result.json": {
-      "filePath": ".understand-anything/intermediate/scan-result.json",
-      "contentHash": "8a06d1123281958ebe5117e50970b76ba70f0fa6d9fda7639242cd1c60691e4d",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 1224,
+      "totalLines": 11563,
       "hasStructuralAnalysis": true
     },
     ".understand-anything/knowledge-graph.json": {
       "filePath": ".understand-anything/knowledge-graph.json",
-      "contentHash": "1d7f5f162f5967d8ce36cbb561fa79ee98829de9bed2b074c0fd128c50136ec5",
+      "contentHash": "647e4081490ebfe006fd3f48ec1ed6c5ba6c84aa4cd0e150245eef8aa0e1f97c",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 18559,
+      "totalLines": 11515,
       "hasStructuralAnalysis": true
     },
     ".understand-anything/meta.json": {
       "filePath": ".understand-anything/meta.json",
-      "contentHash": "c98ebb949b38c35774de357a52ac393a2c1b21515c7d1aa466aba8bb55b008dc",
+      "contentHash": "3097ec7d3e2354e10d935cf7dbf0ab2ff7200af95294e3357de44f744e260476",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -7848,6 +7838,87 @@
       "totalLines": 83,
       "hasStructuralAnalysis": true
     },
+    "web/Backend/src/main/java/com/cafe/jenika/controller/ThuChiController.java": {
+      "filePath": "web/Backend/src/main/java/com/cafe/jenika/controller/ThuChiController.java",
+      "contentHash": "ff160cdb25e5ffbd69132c90a6bcbcf36d3256550674903df91c16035072927a",
+      "functions": [
+        {
+          "name": "getAllTransactions",
+          "params": [],
+          "returnType": "ResponseEntity<List<ThuChiDTO>>",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "createTransaction",
+          "params": [
+            "dto"
+          ],
+          "returnType": "ResponseEntity<ThuChiDTO>",
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [
+        {
+          "name": "ThuChiController",
+          "methods": [
+            "getAllTransactions",
+            "createTransaction"
+          ],
+          "properties": [
+            "thuChiService"
+          ],
+          "exported": true,
+          "lineCount": 21
+        }
+      ],
+      "imports": [
+        {
+          "source": "com.cafe.jenika.dto.ThuChiDTO",
+          "specifiers": [
+            "ThuChiDTO"
+          ]
+        },
+        {
+          "source": "com.cafe.jenika.service.ThuChiService",
+          "specifiers": [
+            "ThuChiService"
+          ]
+        },
+        {
+          "source": "org.springframework.beans.factory.annotation.Autowired",
+          "specifiers": [
+            "Autowired"
+          ]
+        },
+        {
+          "source": "org.springframework.http.ResponseEntity",
+          "specifiers": [
+            "ResponseEntity"
+          ]
+        },
+        {
+          "source": "org.springframework.web.bind.annotation",
+          "specifiers": [
+            "*"
+          ]
+        },
+        {
+          "source": "java.util.List",
+          "specifiers": [
+            "List"
+          ]
+        }
+      ],
+      "exports": [
+        "getAllTransactions",
+        "createTransaction",
+        "ThuChiController"
+      ],
+      "totalLines": 31,
+      "hasStructuralAnalysis": true
+    },
     "web/Backend/src/main/java/com/cafe/jenika/dto/BanHangDTO.java": {
       "filePath": "web/Backend/src/main/java/com/cafe/jenika/dto/BanHangDTO.java",
       "contentHash": "813ccf2eccc92f45a89affbcbeaec93e42a218af155e78986aa7f1de295e4044",
@@ -8496,6 +8567,81 @@
       "totalLines": 60,
       "hasStructuralAnalysis": true
     },
+    "web/Backend/src/main/java/com/cafe/jenika/dto/ThuChiDTO.java": {
+      "filePath": "web/Backend/src/main/java/com/cafe/jenika/dto/ThuChiDTO.java",
+      "contentHash": "74ef6c743d0d54376b7ae33d3f205ae52963a50b91c7633eb8d8a9f37deb3344",
+      "functions": [
+        {
+          "name": "fromEntity",
+          "params": [
+            "entity"
+          ],
+          "returnType": "ThuChiDTO",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "toEntity",
+          "params": [],
+          "returnType": "ThuChi",
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [
+        {
+          "name": "ThuChiDTO",
+          "methods": [
+            "fromEntity",
+            "toEntity"
+          ],
+          "properties": [
+            "id",
+            "thoiGian",
+            "idLoai",
+            "tenLoai",
+            "tienThu",
+            "tienChi",
+            "moTa",
+            "idNhanVien",
+            "tenNhanVien",
+            "idBanHang",
+            "idNhapHang",
+            "phuongThuc",
+            "trangThai"
+          ],
+          "exported": true,
+          "lineCount": 50
+        }
+      ],
+      "imports": [
+        {
+          "source": "com.cafe.jenika.model.ThuChi",
+          "specifiers": [
+            "ThuChi"
+          ]
+        },
+        {
+          "source": "java.math.BigDecimal",
+          "specifiers": [
+            "BigDecimal"
+          ]
+        },
+        {
+          "source": "java.time.LocalDateTime",
+          "specifiers": [
+            "LocalDateTime"
+          ]
+        }
+      ],
+      "exports": [
+        "fromEntity",
+        "toEntity",
+        "ThuChiDTO"
+      ],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
     "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java": {
       "filePath": "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java",
       "contentHash": "e328c69ee7944389b92431b0f20667908adb22c6bb7be740398dccbc707eda1d",
@@ -9111,6 +9257,57 @@
       "totalLines": 66,
       "hasStructuralAnalysis": true
     },
+    "web/Backend/src/main/java/com/cafe/jenika/model/ThuChi.java": {
+      "filePath": "web/Backend/src/main/java/com/cafe/jenika/model/ThuChi.java",
+      "contentHash": "34719fbb58541fc8293e5b45c74e116fa6c8c993974b3cfbaabf09eb3b60fb2a",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ThuChi",
+          "methods": [],
+          "properties": [
+            "id",
+            "thoiGian",
+            "loaiThuChi",
+            "tienThu",
+            "tienChi",
+            "moTa",
+            "nhanVien",
+            "banHang",
+            "nhapHang",
+            "phuongThuc",
+            "trangThai"
+          ],
+          "exported": true,
+          "lineCount": 47
+        }
+      ],
+      "imports": [
+        {
+          "source": "jakarta.persistence",
+          "specifiers": [
+            "*"
+          ]
+        },
+        {
+          "source": "java.math.BigDecimal",
+          "specifiers": [
+            "BigDecimal"
+          ]
+        },
+        {
+          "source": "java.time.LocalDateTime",
+          "specifiers": [
+            "LocalDateTime"
+          ]
+        }
+      ],
+      "exports": [
+        "ThuChi"
+      ],
+      "totalLines": 55,
+      "hasStructuralAnalysis": true
+    },
     "web/Backend/src/main/java/com/cafe/jenika/repository/BanHangRepository.java": {
       "filePath": "web/Backend/src/main/java/com/cafe/jenika/repository/BanHangRepository.java",
       "contentHash": "d4dce736d07025a787c112a93e248d955ef323c81eaadef11b7a078396d1d025",
@@ -9699,6 +9896,53 @@
         "SanPhamRepository"
       ],
       "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
+    "web/Backend/src/main/java/com/cafe/jenika/repository/ThuChiRepository.java": {
+      "filePath": "web/Backend/src/main/java/com/cafe/jenika/repository/ThuChiRepository.java",
+      "contentHash": "64233051a45531758d946ce43f99e5ed38934fcdd1603d88417ab392a8e6b71e",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ThuChiRepository",
+          "methods": [
+            "findAllByOrderByThoiGianDesc"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "imports": [
+        {
+          "source": "com.cafe.jenika.model.ThuChi",
+          "specifiers": [
+            "ThuChi"
+          ]
+        },
+        {
+          "source": "org.springframework.data.jpa.repository.JpaRepository",
+          "specifiers": [
+            "JpaRepository"
+          ]
+        },
+        {
+          "source": "org.springframework.stereotype.Repository",
+          "specifiers": [
+            "Repository"
+          ]
+        },
+        {
+          "source": "java.util.List",
+          "specifiers": [
+            "List"
+          ]
+        }
+      ],
+      "exports": [
+        "ThuChiRepository"
+      ],
+      "totalLines": 12,
       "hasStructuralAnalysis": true
     },
     "web/Backend/src/main/java/com/cafe/jenika/service/BanHangService.java": {
@@ -10957,6 +11201,110 @@
       "totalLines": 130,
       "hasStructuralAnalysis": true
     },
+    "web/Backend/src/main/java/com/cafe/jenika/service/ThuChiService.java": {
+      "filePath": "web/Backend/src/main/java/com/cafe/jenika/service/ThuChiService.java",
+      "contentHash": "587662f7dcdd3ae8e51afd30df2b54b18cfc5c84e37b6628273075485e0e2839",
+      "functions": [
+        {
+          "name": "getAllTransactions",
+          "params": [],
+          "returnType": "List<ThuChiDTO>",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "saveTransaction",
+          "params": [
+            "dto"
+          ],
+          "returnType": "ThuChiDTO",
+          "exported": true,
+          "lineCount": 40
+        }
+      ],
+      "classes": [
+        {
+          "name": "ThuChiService",
+          "methods": [
+            "getAllTransactions",
+            "saveTransaction"
+          ],
+          "properties": [
+            "thuChiRepository",
+            "loaiThuChiRepository",
+            "nhanVienRepository",
+            "banHangRepository",
+            "nhapHangRepository",
+            "nhatKyService"
+          ],
+          "exported": true,
+          "lineCount": 68
+        }
+      ],
+      "imports": [
+        {
+          "source": "com.cafe.jenika.dto.ThuChiDTO",
+          "specifiers": [
+            "ThuChiDTO"
+          ]
+        },
+        {
+          "source": "com.cafe.jenika.model",
+          "specifiers": [
+            "*"
+          ]
+        },
+        {
+          "source": "com.cafe.jenika.repository",
+          "specifiers": [
+            "*"
+          ]
+        },
+        {
+          "source": "org.springframework.beans.factory.annotation.Autowired",
+          "specifiers": [
+            "Autowired"
+          ]
+        },
+        {
+          "source": "org.springframework.stereotype.Service",
+          "specifiers": [
+            "Service"
+          ]
+        },
+        {
+          "source": "org.springframework.transaction.annotation.Transactional",
+          "specifiers": [
+            "Transactional"
+          ]
+        },
+        {
+          "source": "java.time.LocalDateTime",
+          "specifiers": [
+            "LocalDateTime"
+          ]
+        },
+        {
+          "source": "java.util.List",
+          "specifiers": [
+            "List"
+          ]
+        },
+        {
+          "source": "java.util.stream.Collectors",
+          "specifiers": [
+            "Collectors"
+          ]
+        }
+      ],
+      "exports": [
+        "getAllTransactions",
+        "saveTransaction",
+        "ThuChiService"
+      ],
+      "totalLines": 81,
+      "hasStructuralAnalysis": true
+    },
     "web/Backend/src/main/java/com/cafe/jenika/WebCafeApplication.java": {
       "filePath": "web/Backend/src/main/java/com/cafe/jenika/WebCafeApplication.java",
       "contentHash": "2bdb28f78955d6e2423a74cf2c23087b8fcccac5b371dc5ca60cc970973f90d2",
@@ -11150,13 +11498,13 @@
     },
     "web/Frontend/src/app/expenses/page.tsx": {
       "filePath": "web/Frontend/src/app/expenses/page.tsx",
-      "contentHash": "d2834bdd1efc03de2d01938de9a59318e3d8c1907357501a0e16443fa092cd05",
+      "contentHash": "abda23e686ff59e9c3433dcd99f40248d4f1992e1166325e296b5a3509ee85b1",
       "functions": [
         {
           "name": "ExpensesContent",
           "params": [],
           "exported": false,
-          "lineCount": 378
+          "lineCount": 485
         },
         {
           "name": "ExpensesPage",
@@ -11186,7 +11534,7 @@
       "exports": [
         "ExpensesPage"
       ],
-      "totalLines": 412,
+      "totalLines": 519,
       "hasStructuralAnalysis": true
     },
     "web/Frontend/src/app/globals.css": {

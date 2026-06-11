@@ -1,14 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Pagination from '@/components/Pagination';
-
-interface BusinessPartner {
-  id: number;
-  ten: string;
-  sdt?: string;
-  diaChi?: string;
-}
+import Pagination from '@/components/ui/Pagination';
+import { BusinessPartner } from '@/types';
+import { partnerService } from '@/services/partnerService';
 
 export default function PartnersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,8 +37,8 @@ export default function PartnersPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:8080/api/v1/metadata/doi-tac");
-      if (res.ok) setPartners(await res.json());
+      const data = await partnerService.getPartners();
+      setPartners(data);
     } catch (err) {
       console.error("Error loading partners:", err);
     } finally {
@@ -76,25 +71,15 @@ export default function PartnersPage() {
     };
 
     try {
-      const res = await fetch("http://localhost:8080/api/v1/metadata/doi-tac", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        setPartnerName('');
-        setPhone('');
-        setAddress('');
-        setIsModalOpen(false);
-        loadData();
-      } else {
-        const text = await res.text();
-        setModalError(`Lỗi lưu đối tác: ${text}`);
-      }
-    } catch (err) {
+      await partnerService.createPartner(payload);
+      setPartnerName('');
+      setPhone('');
+      setAddress('');
+      setIsModalOpen(false);
+      loadData();
+    } catch (err: any) {
       console.error(err);
-      setModalError("Lỗi kết nối máy chủ.");
+      setModalError(`Lỗi lưu đối tác: ${err.message || 'Lỗi kết nối máy chủ'}`);
     }
   };
 
@@ -115,93 +100,97 @@ export default function PartnersPage() {
   const paginatedPartners = filteredPartners.slice(startIndex, startIndex + itemsPerPage);
 
   return (
-    <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full relative">
-      {/* Top Bar Navigation */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-8 flex-1">
-          <div className="relative w-96 group">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary">
-              search
-            </span>
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface-lowest border border-border-glass rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-white outline-none"
-              placeholder="Tìm kiếm đối tác, nhà cung cấp, khách hàng..."
-              type="text"
-            />
-          </div>
+    <div className="h-[calc(100vh-16px)] overflow-hidden flex flex-col pt-2 pb-2 px-4 space-y-3 w-full relative">
+      {/* Top Header Controls */}
+      <div className="flex justify-between items-center flex-shrink-0">
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-wide">Quản lý Đối tác</h2>
+          <p className="text-[10px] text-on-surface-variant mt-0.5">Quản lý danh sách khách hàng và nhà cung cấp dịch vụ của cửa hàng.</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-primary text-on-primary px-6 py-2 rounded-lg font-semibold glow-teal flex items-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          className="bg-primary text-on-primary px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 glow-button transition-all active:scale-95 cursor-pointer text-xs animate-in fade-in"
         >
-          <span className="material-symbols-outlined mr-2 text-lg">add</span>
-          Thêm đối tác mới
+          <span className="material-symbols-outlined text-base">add</span>
+          <span>Thêm đối tác mới</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-white text-sm">Đang tải danh sách đối tác...</div>
+        <div className="flex-1 flex items-center justify-center text-white text-sm">Đang tải danh sách đối tác...</div>
       ) : (
         <>
           {/* Partners Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="glass-card p-6 rounded-xl flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined">group</span>
-              </div>
-              <div>
-                <p className="text-xs text-on-surface-variant uppercase tracking-wider">Tổng số đối tác</p>
-                <p className="text-xl font-bold text-white">{partners.length} Tài khoản</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+            <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg text-lg">group</span>
+                <div>
+                  <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Tổng số đối tác</p>
+                  <h3 className="text-sm font-bold text-on-surface">{partners.length} Đối tác</h3>
+                </div>
               </div>
             </div>
 
-            <div className="glass-card p-6 rounded-xl flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success">
-                <span className="material-symbols-outlined">person_pin_circle</span>
-              </div>
-              <div>
-                <p className="text-xs text-on-surface-variant uppercase tracking-wider">Đã đồng bộ</p>
-                <p className="text-xl font-bold text-white">Thời gian thực</p>
+            <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-success bg-success/10 p-2 rounded-lg text-lg">sync</span>
+                <div>
+                  <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Trạng thái đồng bộ</p>
+                  <h3 className="text-sm font-bold text-success">Thời gian thực</h3>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Partners List Section */}
-          <div className="glass-card rounded-xl overflow-hidden">
-            <div className="p-6 border-b border-border-glass flex justify-between items-center">
-              <span className="text-white font-semibold">Danh sách Khách hàng &amp; Nhà phân phối</span>
-              <div className="text-xs text-text-variant font-semibold">
-                Tìm thấy <span className="text-white font-bold">{filteredPartners.length}</span> tài khoản đối tác
+          <div className="flex-1 flex flex-col min-h-0 glass-card rounded-xl overflow-hidden border border-white/5 bg-white/1 mt-1">
+            <div className="p-3 border-b border-border-glass flex justify-between items-center flex-shrink-0">
+              <span className="text-white font-semibold text-xs">Danh sách Khách hàng &amp; Nhà phân phối</span>
+              <div className="flex items-center gap-4">
+                <div className="relative w-60">
+                  <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant opacity-60">
+                    search
+                  </span>
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-surface-lowest border border-border-glass rounded-lg py-1.5 pl-8 pr-3 text-xs focus:ring-1 focus:ring-primary/50 transition-all text-white outline-none"
+                    placeholder="Tìm tên, sdt, địa chỉ..."
+                    type="text"
+                  />
+                </div>
+                <div className="text-xs text-on-surface-variant font-semibold">
+                  Hiển thị <span className="text-white font-bold">{filteredPartners.length}</span> đối tác
+                </div>
               </div>
             </div>
 
             {/* Table Content */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-white/5 text-xs text-on-surface-variant uppercase tracking-wider border-b border-border-glass">
-                    <th className="px-6 py-4 font-semibold">Mã đối tác</th>
-                    <th className="px-6 py-4 font-semibold">Tên đối tác</th>
-                    <th className="px-6 py-4 font-semibold">Số điện thoại</th>
-                    <th className="px-6 py-4 font-semibold">Địa chỉ giao dịch</th>
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-[#131929] shadow-[0_1px_0_0_rgba(255,255,255,0.08)]">
+                  <tr className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-border-glass bg-[#131929]">
+                    <th className="px-4 py-3">Mã đối tác</th>
+                    <th className="px-4 py-3">Tên đối tác</th>
+                    <th className="px-4 py-3">Số điện thoại</th>
+                    <th className="px-4 py-3">Địa chỉ giao dịch</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-glass">
                   {paginatedPartners.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant text-xs font-semibold">
+                      <td colSpan={4} className="px-4 py-8 text-center text-on-surface-variant text-xs font-semibold">
                         Không tìm thấy đối tác nào khớp với tìm kiếm.
                       </td>
                     </tr>
                   ) : (
                     paginatedPartners.map((partner) => (
                       <tr key={partner.id} className="hover:bg-white/5 transition-colors group">
-                        <td className="px-6 py-4 font-mono text-sm text-secondary">DT-{partner.id}</td>
-                        <td className="px-6 py-4 font-bold text-white">{partner.ten}</td>
-                        <td className="px-6 py-4 text-xs text-white">{partner.sdt || '---'}</td>
-                        <td className="px-6 py-4 text-xs text-on-surface-variant">{partner.diaChi || '---'}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-secondary">DT-{partner.id}</td>
+                        <td className="px-4 py-3 font-bold text-white text-xs">{partner.ten}</td>
+                        <td className="px-4 py-3 text-xs text-white">{partner.sdt || '---'}</td>
+                        <td className="px-4 py-3 text-xs text-on-surface-variant">{partner.diaChi || '---'}</td>
                       </tr>
                     ))
                   )}
@@ -210,17 +199,19 @@ export default function PartnersPage() {
             </div>
 
             {/* Reusable Pagination Control */}
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              totalItems={filteredPartners.length}
-              itemsPerPage={itemsPerPage}
-              onItemsPerPageChange={(size) => {
-                setItemsPerPage(size);
-                setCurrentPage(1);
-              }}
-            />
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={filteredPartners.length}
+                itemsPerPage={itemsPerPage}
+                onItemsPerPageChange={(size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
           </div>
 
           {/* Add Partner Modal */}

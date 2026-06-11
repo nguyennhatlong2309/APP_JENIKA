@@ -2,38 +2,10 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Pagination from '@/components/Pagination';
-
-interface CategoryItem {
-  id: number;
-  tenDanhMuc: string;
-  moTa?: string;
-}
-
-interface UnitItem {
-  id: number;
-  tenDonVi: string;
-}
-
-interface GroupItem {
-  id: number;
-  tenNhom: string;
-}
-
-interface ProductItem {
-  id: number;
-  tenSanPham: string;
-  giaNhapHienTai: number;
-  giaBanHienTai: number;
-  soLuongTon: number;
-  canhBaoTonKho: number;
-  trangThai: string;
-  danhMuc?: CategoryItem | null;
-  donViTinh?: UnitItem | null;
-  nhomSanPham?: GroupItem | null;
-  biXoa: boolean;
-  ghiChu?: string;
-}
+import Pagination from '@/components/ui/Pagination';
+import { CategoryItem, UnitItem, GroupItem, ProductItem } from '@/types';
+import { productService } from '@/services/productService';
+import { formatVND } from '@/lib/utils';
 
 function InventoryContent() {
   const searchParams = useSearchParams();
@@ -101,38 +73,28 @@ function InventoryContent() {
     try {
       setLoading(true);
       // Fetch all products (including deleted ones)
-      const prodRes = await fetch("http://localhost:8080/api/v1/san-pham/all");
-      if (prodRes.ok) {
-        setProducts(await prodRes.json());
-      } else {
+      try {
+        const prodData = await productService.getAllProducts();
+        setProducts(prodData);
+        console.log(prodData);
+      } catch (err) {
         // Fallback to active-only if new endpoint fails
-        const fallbackRes = await fetch("http://localhost:8080/api/v1/san-pham");
-        if (fallbackRes.ok) {
-          setProducts(await fallbackRes.json());
-        }
+        const fallbackData = await productService.getActiveProducts();
+        setProducts(fallbackData);
       }
 
       // Metadata
-      const catRes = await fetch("http://localhost:8080/api/v1/metadata/danh-muc");
-      if (catRes.ok) {
-        const cats = await catRes.json();
-        setCategories(cats);
-        if (cats.length > 0 && !categoryId) setCategoryId(cats[0].id.toString());
-      }
+      const cats = await productService.getCategories();
+      setCategories(cats);
+      if (cats.length > 0 && !categoryId) setCategoryId(cats[0].id.toString());
 
-      const unitRes = await fetch("http://localhost:8080/api/v1/metadata/don-vi");
-      if (unitRes.ok) {
-        const uns = await unitRes.json();
-        setUnits(uns);
-        if (uns.length > 0 && !unitId) setUnitId(uns[0].id.toString());
-      }
+      const uns = await productService.getUnits();
+      setUnits(uns);
+      if (uns.length > 0 && !unitId) setUnitId(uns[0].id.toString());
 
-      const groupRes = await fetch("http://localhost:8080/api/v1/metadata/nhom-san-pham");
-      if (groupRes.ok) {
-        const gps = await groupRes.json();
-        setGroups(gps);
-        if (gps.length > 0 && !groupId) setGroupId(gps[0].id.toString());
-      }
+      const gps = await productService.getGroups();
+      setGroups(gps);
+      if (gps.length > 0 && !groupId) setGroupId(gps[0].id.toString());
     } catch (err) {
       console.error("Error loading inventory data:", err);
     } finally {
@@ -186,7 +148,7 @@ function InventoryContent() {
     setModalError(null);
     setIsEditMode(false);
     setEditingProductId(null);
-    
+
     // Reset form fields
     setProductName('');
     setCostPrice(0);
@@ -197,7 +159,7 @@ function InventoryContent() {
     setCategoryId(categories.length > 0 ? categories[0].id.toString() : '');
     setUnitId(units.length > 0 ? units[0].id.toString() : '');
     setGroupId(groups.length > 0 ? groups[0].id.toString() : '');
-    
+
     router.replace('/inventory');
   };
 
@@ -220,28 +182,15 @@ function InventoryContent() {
     if (!newGroupName.trim()) return;
     setIsCreatingGroup(true);
     try {
-      const res = await fetch("http://localhost:8080/api/v1/metadata/nhom-san-pham", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenNhom: newGroupName.trim() })
-      });
-      if (res.ok) {
-        const createdGroup: GroupItem = await res.json();
-        // Update local groups state
-        setGroups(prev => [...prev, createdGroup]);
-        // Set as selected group
-        setGroupId(createdGroup.id.toString());
-        // Auto-fill product name
-        setProductName(createdGroup.tenNhom + " ");
-        // Reset states
-        setNewGroupName('');
-        setIsNewGroupModalOpen(false);
-      } else {
-        alert("Không thể tạo nhóm sản phẩm mới.");
-      }
+      const createdGroup = await productService.createGroup({ tenNhom: newGroupName.trim() });
+      setGroups(prev => [...prev, createdGroup]);
+      setGroupId(createdGroup.id.toString());
+      setProductName(createdGroup.tenNhom + " ");
+      setNewGroupName('');
+      setIsNewGroupModalOpen(false);
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối máy chủ.");
+      alert("Không thể tạo nhóm sản phẩm mới.");
     } finally {
       setIsCreatingGroup(false);
     }
@@ -270,100 +219,61 @@ function InventoryContent() {
     };
 
     try {
-      const url = isEditMode && editingProductId 
-        ? `http://localhost:8080/api/v1/san-pham/${editingProductId}`
-        : "http://localhost:8080/api/v1/san-pham";
-      const method = isEditMode ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        closeModal();
-        loadData();
+      if (isEditMode && editingProductId) {
+        await productService.updateProduct(editingProductId, payload);
       } else {
-        const text = await res.text();
-        setModalError(`Lỗi lưu sản phẩm: ${text}`);
+        await productService.createProduct(payload);
       }
+      closeModal();
+      loadData();
     } catch (err) {
       console.error(err);
-      setModalError("Lỗi kết nối máy chủ.");
+      setModalError("Lỗi kết nối máy chủ hoặc lỗi khi lưu sản phẩm.");
     }
   };
 
   const handleDeleteProduct = async (id: number) => {
     if (!confirm("Bạn có chắc chắn muốn ẩn sản phẩm này (xóa mềm)?")) return;
     try {
-      const res = await fetch(`http://localhost:8080/api/v1/san-pham/${id}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        loadData();
-      } else {
-        alert("Không thể ẩn sản phẩm.");
-      }
+      await productService.deleteProduct(id);
+      loadData();
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối máy chủ.");
+      alert("Không thể ẩn sản phẩm.");
     }
   };
 
   const handleRestoreProduct = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/v1/san-pham/${id}/restore`, {
-        method: "PUT"
-      });
-      if (res.ok) {
-        loadData();
-      } else {
-        alert("Không thể khôi phục sản phẩm.");
-      }
+      await productService.restoreProduct(id);
+      loadData();
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối máy chủ.");
+      alert("Không thể khôi phục sản phẩm.");
     }
   };
 
   const handleSaveCategoryName = async (id: number) => {
     if (!editCategoryName.trim()) return;
     try {
-      const res = await fetch(`http://localhost:8080/api/v1/metadata/danh-muc/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenDanhMuc: editCategoryName.trim() })
-      });
-      if (res.ok) {
-        setEditingCategoryId(null);
-        loadData();
-      } else {
-        alert("Không thể cập nhật tên danh mục.");
-      }
+      await productService.updateCategory(id, { tenDanhMuc: editCategoryName.trim() });
+      setEditingCategoryId(null);
+      loadData();
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối máy chủ.");
+      alert("Không thể cập nhật tên danh mục.");
     }
   };
 
   const handleSaveGroupName = async (id: number) => {
     if (!editGroupName.trim()) return;
     try {
-      const res = await fetch(`http://localhost:8080/api/v1/metadata/nhom-san-pham/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenNhom: editGroupName.trim() })
-      });
-      if (res.ok) {
-        setEditingGroupId(null);
-        loadData();
-      } else {
-        alert("Không thể cập nhật tên nhóm sản phẩm.");
-      }
+      await productService.updateGroup(id, { tenNhom: editGroupName.trim() });
+      setEditingGroupId(null);
+      loadData();
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối máy chủ.");
+      alert("Không thể cập nhật tên nhóm sản phẩm.");
     }
   };
 
@@ -372,10 +282,6 @@ function InventoryContent() {
   const totalItems = activeProducts.reduce((sum, p) => sum + (p.soLuongTon || 0), 0);
   const lowStockCount = activeProducts.filter((p) => (p.soLuongTon || 0) <= (p.canhBaoTonKho || 5)).length;
   const totalValue = activeProducts.reduce((sum, p) => sum + (p.soLuongTon || 0) * (p.giaNhapHienTai || 0), 0);
-
-  const formatVND = (num: number) => {
-    return num.toLocaleString('vi-VN') + ' ₫';
-  };
 
   // Filter products dynamically
   const filteredProducts = products.filter((p) => {
@@ -470,12 +376,12 @@ function InventoryContent() {
           </div>
         </div>
 
-        <div className={`glass-card py-2.5 px-4 rounded-xl flex items-center justify-between transition-all ${lowStockCount > 0 ? 'border-error/30 hover:border-error/50' : 'hover:border-primary/30'}`}>
+        <div className={`glass-card py-2.5 px-4 rounded-xl flex items-center justify-between transition-all ${lowStockCount > 0 ? 'border-warning/30 hover:border-warning/50' : 'hover:border-primary/30'}`}>
           <div className="flex items-center gap-3">
-            <span className={`material-symbols-outlined p-2 rounded-lg text-lg ${lowStockCount > 0 ? 'text-error bg-error/10' : 'text-primary bg-primary/10'}`}>warning</span>
+            <span className={`material-symbols-outlined p-2 rounded-lg text-lg ${lowStockCount > 0 ? 'text-warning bg-warning/10' : 'text-primary bg-primary/10'}`}>warning</span>
             <div>
               <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Cảnh báo hết hàng</p>
-              <h3 className={`text-sm font-bold ${lowStockCount > 0 ? 'text-error' : 'text-on-surface'}`}>{lowStockCount} Sản phẩm</h3>
+              <h3 className={`text-sm font-bold ${lowStockCount > 0 ? 'text-warning' : 'text-on-surface'}`}>{lowStockCount} Sản phẩm</h3>
             </div>
           </div>
         </div>
@@ -699,9 +605,9 @@ function InventoryContent() {
                 <div className="space-y-1">
                   {['Còn hàng', 'Cảnh báo', 'Hết hàng'].map(status => {
                     const isSelected = selectedStatuses.includes(status);
-                    const colorClass = 
+                    const colorClass =
                       status === 'Còn hàng' ? 'text-success font-semibold' :
-                      status === 'Cảnh báo' ? 'text-warning font-semibold' : 'text-error font-semibold';
+                        status === 'Cảnh báo' ? 'text-warning font-semibold' : 'text-error font-semibold';
 
                     return (
                       <div key={status} className="flex items-center py-0.5">
@@ -738,11 +644,10 @@ function InventoryContent() {
                 onClick={() => {
                   setActiveTab('dang-kinh-doanh');
                 }}
-                className={`pb-2.5 font-bold text-sm transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
-                  activeTab === 'dang-kinh-doanh'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-on-surface-variant hover:text-white'
-                }`}
+                className={`pb-2.5 font-bold text-sm transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${activeTab === 'dang-kinh-doanh'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-on-surface-variant hover:text-white'
+                  }`}
               >
                 <span>Hàng hóa đang kinh doanh</span>
                 <span className="text-[10px] bg-primary/20 text-primary py-0.5 px-2 rounded-full">
@@ -753,11 +658,10 @@ function InventoryContent() {
                 onClick={() => {
                   setActiveTab('bi-an');
                 }}
-                className={`pb-2.5 font-bold text-sm transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
-                  activeTab === 'bi-an'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-on-surface-variant hover:text-white'
-                }`}
+                className={`pb-2.5 font-bold text-sm transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${activeTab === 'bi-an'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-on-surface-variant hover:text-white'
+                  }`}
               >
                 <span>Hàng hóa bị ẩn</span>
                 <span className="text-[10px] bg-error/20 text-error py-0.5 px-2 rounded-full">
@@ -816,16 +720,20 @@ function InventoryContent() {
                 ) : (
                   paginatedProducts.map((p) => {
                     const isLow = p.soLuongTon <= p.canhBaoTonKho;
+                    const isOutOfStock = p.soLuongTon <= 0 || p.trangThai === 'Hết hàng';
+                    const isWarning = !isOutOfStock && (p.soLuongTon <= p.canhBaoTonKho || p.trangThai === 'Cảnh báo');
                     const giaTriTon = (p.soLuongTon || 0) * (p.giaNhapHienTai || 0);
 
                     return (
                       <tr
                         key={p.id}
-                        className={`hover:bg-white/5 transition-all group ${isLow && !p.biXoa ? 'bg-error/5' : ''}`}
+                        className={`hover:bg-white/5 transition-all group ${!p.biXoa && isOutOfStock ? 'bg-error/5' :
+                          !p.biXoa && isWarning ? 'bg-warning/5' : ''
+                          }`}
                       >
                         {/* Mã */}
                         <td className="px-4 py-3 font-mono text-xs text-primary">SP-{p.id}</td>
-                        
+
                         {/* Tên */}
                         <td className="px-4 py-3 font-semibold text-white">
                           <div>
@@ -868,11 +776,17 @@ function InventoryContent() {
                         {/* Tồn kho */}
                         <td className="px-4 py-3 text-right">
                           <div className="inline-block text-right">
-                            <span className={`text-xs font-bold ${isLow && !p.biXoa ? 'text-error' : 'text-on-surface'}`}>
+                            <span className={`text-xs font-bold ${!p.biXoa && isOutOfStock ? 'text-error' :
+                              !p.biXoa && isWarning ? 'text-warning' : 'text-on-surface'
+                              }`}>
                               {p.soLuongTon}
                             </span>
                             {isLow && !p.biXoa && (
-                              <span className="text-[8px] bg-error/25 text-error border border-error/30 px-1 ml-1.5 rounded uppercase font-bold">Yếu</span>
+                              isOutOfStock ? (
+                                <span className="text-[8px] bg-error/25 text-error border border-error/30 px-1 ml-1.5 rounded uppercase font-bold">Hết</span>
+                              ) : (
+                                <span className="text-[8px] bg-warning/25 text-warning border border-warning/30 px-1 ml-1.5 rounded uppercase font-bold">Yếu</span>
+                              )
                             )}
                           </div>
                         </td>
@@ -884,11 +798,10 @@ function InventoryContent() {
 
                         {/* Trạng thái */}
                         <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                            p.trangThai === 'Còn hàng' ? 'bg-success/20 text-success' :
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${p.trangThai === 'Còn hàng' ? 'bg-success/20 text-success' :
                             p.trangThai === 'Cảnh báo' ? 'bg-warning/20 text-warning' :
-                            'bg-error/20 text-error'
-                          }`}>
+                              'bg-error/20 text-error'
+                            }`}>
                             {p.trangThai}
                           </span>
                         </td>
@@ -954,7 +867,7 @@ function InventoryContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
           {/* Backdrop */}
           <div className="absolute inset-0" onClick={closeModal}></div>
- 
+
           <div className="relative glass-card w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-border-glass flex justify-between items-center bg-white/2">
               <div>
@@ -972,16 +885,16 @@ function InventoryContent() {
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            
+
             {modalError && (
               <div className="p-3 mx-6 mt-4 text-xs font-semibold text-error bg-error/10 border border-error/20 rounded-xl">
                 ⚠️ {modalError}
               </div>
             )}
- 
+
             <form onSubmit={handleSubmitProduct}>
               <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[500px] overflow-y-auto">
-                
+
                 {/* Group selection (Trường đầu tiên) */}
                 <div className="space-y-2 md:col-span-1 relative group-dropdown-container">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Nhóm sản phẩm</label>
@@ -1047,18 +960,17 @@ function InventoryContent() {
                                     setProductName(g.tenNhom + " "); // Auto-fill
                                     setIsGroupDropdownOpen(false);
                                   }}
-                                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex justify-between items-center cursor-pointer ${
-                                    isSelected 
-                                      ? 'bg-primary/20 text-primary font-bold' 
-                                      : 'text-on-surface-variant hover:bg-white/5 hover:text-white'
-                                  }`}
+                                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex justify-between items-center cursor-pointer ${isSelected
+                                    ? 'bg-primary/20 text-primary font-bold'
+                                    : 'text-on-surface-variant hover:bg-white/5 hover:text-white'
+                                    }`}
                                 >
                                   <span>{g.tenNhom}</span>
                                   {isSelected && <span className="material-symbols-outlined text-sm">done</span>}
                                 </button>
                               );
                             })}
-                          
+
                           {groups.filter(g => g.tenNhom.toLowerCase().includes(groupSearchQuery.toLowerCase())).length === 0 && (
                             <div className="text-center text-[10px] text-on-surface-variant py-4">
                               Không tìm thấy nhóm phù hợp.
@@ -1082,7 +994,7 @@ function InventoryContent() {
                     type="text"
                   />
                 </div>
- 
+
                 {/* Category Selection */}
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Danh mục thực đơn</label>
@@ -1096,7 +1008,7 @@ function InventoryContent() {
                     ))}
                   </select>
                 </div>
- 
+
                 {/* Unit selection */}
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Đơn vị tính</label>
@@ -1110,7 +1022,7 @@ function InventoryContent() {
                     ))}
                   </select>
                 </div>
- 
+
                 {/* Cost Price */}
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Giá nhập kho (VND)</label>
@@ -1122,7 +1034,7 @@ function InventoryContent() {
                     type="number"
                   />
                 </div>
- 
+
                 {/* Selling Price */}
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Giá bán thực đơn (VND)</label>
@@ -1134,7 +1046,7 @@ function InventoryContent() {
                     type="number"
                   />
                 </div>
- 
+
                 {/* Initial Stock */}
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tồn kho ban đầu</label>
@@ -1145,7 +1057,7 @@ function InventoryContent() {
                     type="number"
                   />
                 </div>
- 
+
                 {/* Warning Stock limit */}
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ngưỡng cảnh báo hết hàng</label>
@@ -1168,7 +1080,7 @@ function InventoryContent() {
                   />
                 </div>
               </div>
- 
+
               {/* Modal Actions */}
               <div className="p-6 bg-white/2 border-t border-border-glass flex justify-end gap-4">
                 <button
@@ -1195,7 +1107,7 @@ function InventoryContent() {
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-background/90 backdrop-blur-md">
           {/* Small Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setIsNewGroupModalOpen(false)}></div>
-          
+
           <div className="relative glass-card w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden z-[120] animate-in fade-in zoom-in-95 duration-200 p-6 border border-border-glass bg-[#131929]">
             <h4 className="text-sm font-bold text-primary mb-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-base">folder_open</span>
@@ -1204,7 +1116,7 @@ function InventoryContent() {
             <p className="text-[10px] text-on-surface-variant mb-4">
               Nhập tên nhóm mới để phân loại sản phẩm của bạn.
             </p>
-            
+
             <div className="space-y-3">
               <input
                 type="text"
@@ -1219,7 +1131,7 @@ function InventoryContent() {
                   }
                 }}
               />
-              
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"

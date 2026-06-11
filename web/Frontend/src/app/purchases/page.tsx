@@ -1,69 +1,54 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-interface ProductItem {
-  id: number;
-  tenSanPham: string;
-  giaNhapHienTai: number;
-  donViTinh?: { tenDonVi: string } | null;
-}
-
-interface CategoryItem {
-  id: number;
-  tenDanhMuc: string;
-}
-
-interface UnitItem {
-  id: number;
-  tenDonVi: string;
-}
-
-interface GroupItem {
-  id: number;
-  tenNhom: string;
-}
-
-interface PartnerItem {
-  id: number;
-  ten: string;
-  sdt?: string;
-  diaChi?: string;
-  email?: string;
-}
-
-interface EmployeeItem {
-  id: number;
-  tenNhanVien: string;
-  sdt?: string;
-  email?: string;
-}
-
-interface ImportDetail {
-  sanPham: { id: number; tenSanPham?: string };
-  soLuong: number;
-  donVi?: string;
-  giaNhap: number;
-  thanhTien?: number;
-}
-
-interface PurchaseOrder {
-  id: number;
-  thoiGian: string;
-  ngayNhan?: string;
-  doiTac?: PartnerItem | null;
-  nhanVien?: EmployeeItem | null;
-  tongTien: number;
-  daThanhToan: number;
-  tienNo: number;
-  trangThai: string; // Chờ nhận | Hoàn thành | Hủy
-  ghiChu?: string;
-  chiTietNhapHangs?: ImportDetail[];
-}
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import OcrScanner from '@/components/features/OcrScanner';
+import { ProductItem, CategoryItem, UnitItem, GroupItem, PartnerItem, EmployeeItem, ImportDetail, PurchaseOrder } from '@/types';
+import { productService } from '@/services/productService';
+import { partnerService } from '@/services/partnerService';
+import { purchaseService } from '@/services/purchaseService';
+import { formatVND } from '@/lib/utils';
 
 export default function PurchasesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isOcrOpen, setIsOcrOpen] = useState(false);
+
+  // Reusable custom confirm modal states
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: 'success' | 'warning' | 'error' | 'info';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    type: 'success' | 'warning' | 'error' | 'info' = 'info',
+    confirmText = 'Xác nhận'
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      confirmText,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
   const [selectedViewOrder, setSelectedViewOrder] = useState<PurchaseOrder | null>(null);
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
 
@@ -126,6 +111,8 @@ export default function PurchasesPage() {
   // Tab filter
   const [statusFilter, setStatusFilter] = useState<'Tất cả' | 'Chờ nhận' | 'Hoàn thành' | 'Hủy'>('Tất cả');
   const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   // Data states
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -136,31 +123,25 @@ export default function PurchasesPage() {
   useEffect(() => {
     async function loadMetadata() {
       try {
-        const prodRes = await fetch("http://localhost:8080/api/v1/san-pham");
-        if (prodRes.ok) setAvailableProducts(await prodRes.json());
+        const prodData = await productService.getActiveProducts();
+        setAvailableProducts(prodData);
 
-        const partnerRes = await fetch("http://localhost:8080/api/v1/metadata/doi-tac");
-        if (partnerRes.ok) {
-          const list = await partnerRes.json();
-          setPartners(list);
-          if (list.length > 0) setFormPartnerId(list[0].id.toString());
-        }
+        const partnerData = await partnerService.getPartners();
+        setPartners(partnerData);
+        if (partnerData.length > 0) setFormPartnerId(partnerData[0].id.toString());
 
-        const empRes = await fetch("http://localhost:8080/api/v1/metadata/nhan-vien");
-        if (empRes.ok) {
-          const list = await empRes.json();
-          setEmployees(list);
-          if (list.length > 0) setFormEmployeeId(list[0].id.toString());
-        }
+        const empData = await partnerService.getEmployees();
+        setEmployees(empData as any);
+        if (empData.length > 0) setFormEmployeeId(empData[0].id.toString());
 
-        const catRes = await fetch("http://localhost:8080/api/v1/metadata/danh-muc");
-        if (catRes.ok) setCategories(await catRes.json());
+        const catData = await productService.getCategories();
+        setCategories(catData);
 
-        const groupRes = await fetch("http://localhost:8080/api/v1/metadata/nhom-san-pham");
-        if (groupRes.ok) setGroups(await groupRes.json());
+        const groupData = await productService.getGroups();
+        setGroups(groupData);
 
-        const unitRes = await fetch("http://localhost:8080/api/v1/metadata/don-vi");
-        if (unitRes.ok) setUnits(await unitRes.json());
+        const unitData = await productService.getUnits();
+        setUnits(unitData);
       } catch (err) {
         console.error("Error fetching purchases metadata:", err);
       }
@@ -172,11 +153,11 @@ export default function PurchasesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:8080/api/v1/nhap-hang");
-      if (res.ok) setOrders(await res.json());
+      const ordersData = await purchaseService.getPurchaseOrders();
+      setOrders(ordersData);
 
-      const prodRes = await fetch("http://localhost:8080/api/v1/san-pham");
-      if (prodRes.ok) setAvailableProducts(await prodRes.json());
+      const prodData = await productService.getActiveProducts();
+      setAvailableProducts(prodData);
     } catch (err) {
       console.error(err);
     } finally {
@@ -234,10 +215,12 @@ export default function PurchasesPage() {
     setIsNewEmployeeModalOpen(false);
 
     setModalError(null);
+    setIsOcrOpen(false);
     setIsModalOpen(true);
   };
 
   const openEditModal = (order: PurchaseOrder) => {
+    setIsOcrOpen(false);
     setEditingOrder(order);
     setFormOrderId(order.id);
     setFormPartnerId(order.doiTac ? order.doiTac.id.toString() : '');
@@ -358,36 +341,26 @@ export default function PurchasesPage() {
       return;
     }
     try {
-      const res = await fetch("http://localhost:8080/api/v1/metadata/doi-tac", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ten: newCustomerName,
-          sdt: newCustomerPhone || null,
-          email: newCustomerEmail || null,
-          diaChi: newCustomerAddress || null
-        })
+      const newPartner = await partnerService.createPartner({
+        ten: newCustomerName,
+        sdt: newCustomerPhone || undefined,
+        email: newCustomerEmail || undefined,
+        diaChi: newCustomerAddress || undefined
       });
-      if (res.ok) {
-        const newPartner = await res.json();
-        setPartners(prev => [...prev, newPartner]);
-        setFormPartnerId(newPartner.id.toString());
-        setCustomerQuery(newPartner.ten);
-        setFormDiaChiGiaoHang(newPartner.diaChi || '');
+      setPartners(prev => [...prev, newPartner]);
+      setFormPartnerId(newPartner.id.toString());
+      setCustomerQuery(newPartner.ten);
+      setFormDiaChiGiaoHang(newPartner.diaChi || '');
 
-        // Reset states
-        setNewCustomerName('');
-        setNewCustomerPhone('');
-        setNewCustomerEmail('');
-        setNewCustomerAddress('');
-        setIsNewPartnerModalOpen(false);
-      } else {
-        const txt = await res.text();
-        alert(`Không thể tạo nhà cung cấp: ${txt}`);
-      }
-    } catch (err) {
+      // Reset states
+      setNewCustomerName('');
+      setNewCustomerPhone('');
+      setNewCustomerEmail('');
+      setNewCustomerAddress('');
+      setIsNewPartnerModalOpen(false);
+    } catch (err: any) {
       console.error(err);
-      alert("Lỗi kết nối khi tạo nhà cung cấp.");
+      alert(`Không thể tạo nhà cung cấp: ${err.message || 'Lỗi kết nối'}`);
     }
   };
 
@@ -398,34 +371,24 @@ export default function PurchasesPage() {
       return;
     }
     try {
-      const res = await fetch("http://localhost:8080/api/v1/metadata/nhan-vien", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenNhanVien: newEmployeeName,
-          sdt: newEmployeePhone || null,
-          email: newEmployeeEmail || null,
-          vaiTro: "Nhân viên"
-        })
+      const newEmp = await partnerService.createEmployee({
+        tenNhanVien: newEmployeeName,
+        sdt: newEmployeePhone || undefined,
+        email: newEmployeeEmail || undefined,
+        vaiTro: "Nhân viên"
       });
-      if (res.ok) {
-        const newEmp = await res.json();
-        setEmployees(prev => [...prev, newEmp]);
-        setFormEmployeeId(newEmp.id.toString());
-        setEmployeeQuery(newEmp.tenNhanVien);
+      setEmployees(prev => [...prev, newEmp]);
+      setFormEmployeeId(newEmp.id.toString());
+      setEmployeeQuery(newEmp.tenNhanVien);
 
-        // Reset states
-        setNewEmployeeName('');
-        setNewEmployeePhone('');
-        setNewEmployeeEmail('');
-        setIsNewEmployeeModalOpen(false);
-      } else {
-        const txt = await res.text();
-        alert(`Không thể tạo nhân viên: ${txt}`);
-      }
-    } catch (err) {
+      // Reset states
+      setNewEmployeeName('');
+      setNewEmployeePhone('');
+      setNewEmployeeEmail('');
+      setIsNewEmployeeModalOpen(false);
+    } catch (err: any) {
       console.error(err);
-      alert("Lỗi kết nối khi tạo nhân viên.");
+      alert(`Không thể tạo nhân viên: ${err.message || 'Lỗi kết nối'}`);
     }
   };
 
@@ -445,48 +408,33 @@ export default function PurchasesPage() {
       danhMuc: newProdDanhMucId ? { id: parseInt(newProdDanhMucId) } : null,
       nhomSanPham: newProdNhomId ? { id: parseInt(newProdNhomId) } : null,
       donViTinh: newProdDonViId ? { id: parseInt(newProdDonViId) } : null,
-      ghiChu: newProdGhiChu || null
+      ghiChu: newProdGhiChu || undefined
     };
 
     try {
-      const res = await fetch("http://localhost:8080/api/v1/san-pham", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const savedProduct = await res.json();
+      const savedProduct = await productService.createProduct(payload as any);
 
-        // Reload product list
-        const prodRes = await fetch("http://localhost:8080/api/v1/san-pham");
-        let updatedProducts = availableProducts;
-        if (prodRes.ok) {
-          const list = await prodRes.json();
-          setAvailableProducts(list);
-          updatedProducts = list;
-        }
+      // Reload product list
+      const updatedProducts = await productService.getActiveProducts();
+      setAvailableProducts(updatedProducts);
 
-        // Auto select in row
-        if (activeRowIndex !== null) {
-          const next = [...purchasedDetails];
-          next[activeRowIndex] = {
-            ...next[activeRowIndex],
-            sanPham: { id: savedProduct.id },
-            giaNhap: savedProduct.giaNhapHienTai
-          };
-          setPurchasedDetails(next);
-        }
-
-        // Close modal and reset
-        setIsNewProductModalOpen(false);
-        setActiveRowIndex(null);
-      } else {
-        const txt = await res.text();
-        alert(`Không thể tạo sản phẩm: ${txt}`);
+      // Auto select in row
+      if (activeRowIndex !== null) {
+        const next = [...purchasedDetails];
+        next[activeRowIndex] = {
+          ...next[activeRowIndex],
+          sanPham: { id: savedProduct.id },
+          giaNhap: savedProduct.giaNhapHienTai
+        };
+        setPurchasedDetails(next);
       }
-    } catch (err) {
+
+      // Close modal and reset
+      setIsNewProductModalOpen(false);
+      setActiveRowIndex(null);
+    } catch (err: any) {
       console.error(err);
-      alert("Lỗi kết nối khi tạo sản phẩm.");
+      alert(`Không thể tạo sản phẩm: ${err.message || 'Lỗi kết nối'}`);
     }
   };
 
@@ -530,48 +478,32 @@ export default function PurchasesPage() {
     };
 
     try {
-      const url = editingOrder
-        ? `http://localhost:8080/api/v1/nhap-hang/${editingOrder.id}`
-        : "http://localhost:8080/api/v1/nhap-hang";
-      const method = editingOrder ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        setFormPaid(0);
-        setFormNotes('');
-        setPurchasedDetails([{ sanPham: { id: 0 }, soLuong: 10, giaNhap: 0 }]);
-        setGiftDetails([]);
-        setEditingOrder(null);
-        setIsModalOpen(false);
-        loadData();
+      if (editingOrder) {
+        await purchaseService.updatePurchaseOrder(editingOrder.id, payload as any);
       } else {
-        const txt = await res.text();
-        setModalError(`Lỗi lưu đơn nhập: ${txt}`);
+        await purchaseService.createPurchaseOrder(payload as any);
       }
-    } catch (err) {
+
+      setFormPaid(0);
+      setFormNotes('');
+      setPurchasedDetails([{ sanPham: { id: 0 }, soLuong: 10, giaNhap: 0 }]);
+      setGiftDetails([]);
+      setEditingOrder(null);
+      setIsModalOpen(false);
+      loadData();
+    } catch (err: any) {
       console.error(err);
-      setModalError("Không thể kết nối đến máy chủ.");
+      setModalError(`Lỗi lưu đơn nhập: ${err.message || 'Không thể kết nối đến máy chủ.'}`);
     }
   };
 
   const handleUpdateStatus = async (orderId: number, status: string) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/v1/nhap-hang/${orderId}/status?status=${encodeURIComponent(status)}`, {
-        method: "PUT"
-      });
-      if (res.ok) {
-        loadData();
-      } else {
-        alert("Không thể cập nhật trạng thái đơn nhập. Có thể tồn kho sản phẩm không đủ để hoàn tác.");
-      }
+      await purchaseService.updateStatus(orderId, status);
+      loadData();
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối máy chủ.");
+      alert("Không thể cập nhật trạng thái đơn nhập. Có thể tồn kho sản phẩm không đủ để hoàn tác hoặc lỗi kết nối.");
     }
   };
 
@@ -589,10 +521,6 @@ export default function PurchasesPage() {
     link.setAttribute("href", url);
     link.setAttribute("download", "danh_sach_don_nhap_hang.csv");
     link.click();
-  };
-
-  const formatVND = (num: number) => {
-    return num.toLocaleString('vi-VN') + ' ₫';
   };
 
   const formatNumberWithDots = (num: number | string) => {
@@ -615,121 +543,201 @@ export default function PurchasesPage() {
       const ncc = o.doiTac ? o.doiTac.ten.toLowerCase() : '';
       if (!ncc.includes(q) && !`nh-${o.id}`.includes(q)) return false;
     }
+    if (fromDate) {
+      const itemDate = new Date(o.thoiGian);
+      const from = new Date(fromDate);
+      if (itemDate < from) return false;
+    }
+    if (toDate) {
+      const itemDate = new Date(o.thoiGian);
+      const to = new Date(toDate);
+      to.setHours(23, 59, 59, 999);
+      if (itemDate > to) return false;
+    }
     return true;
   });
 
-  // Procurement Stats
-  const totalProcurement = orders.filter(o => o.trangThai === 'Hoàn thành').reduce((sum, o) => sum + o.tongTien, 0);
-  const pendingShipments = orders.filter(o => o.trangThai === 'Chờ nhận').length;
-  const uniqueSuppliers = Array.from(new Set(orders.map(o => o.doiTac?.id).filter(id => id !== undefined))).length;
+  const dateFilteredOrders = orders.filter((o) => {
+    if (fromDate) {
+      const itemDate = new Date(o.thoiGian);
+      const from = new Date(fromDate);
+      if (itemDate < from) return false;
+    }
+    if (toDate) {
+      const itemDate = new Date(o.thoiGian);
+      const to = new Date(toDate);
+      to.setHours(23, 59, 59, 999);
+      if (itemDate > to) return false;
+    }
+    return true;
+  });
+
+  const totalProcurement = dateFilteredOrders.filter(o => o.trangThai === 'Hoàn thành').reduce((sum, o) => sum + o.tongTien, 0);
+  const totalDebt = dateFilteredOrders.reduce((sum, o) => sum + o.tienNo, 0);
+  const totalOrders = dateFilteredOrders.length;
+  const completionRate = dateFilteredOrders.length > 0
+    ? Math.round((dateFilteredOrders.filter(o => o.trangThai === 'Hoàn thành').length / dateFilteredOrders.length) * 100)
+    : 0;
 
   return (
-    <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full relative">
+    <div className="h-[calc(100vh-16px)] overflow-hidden flex flex-col pt-2 pb-2 px-4 space-y-3 w-full relative">
       {/* Page Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-center flex-shrink-0">
         <div>
-          <h2 className="text-3xl font-bold text-white">Quản lý Đơn Nhập Hàng</h2>
-          <p className="text-text-variant text-sm mt-1">Lập đơn, theo dõi tiến độ nhập nguyên liệu/sản phẩm và quản lý công nợ nhà cung cấp.</p>
+          <h2 className="text-xl font-bold text-white tracking-wide">Quản lý Đơn Nhập Hàng</h2>
+          <p className="text-[10px] text-on-surface-variant mt-0.5">Lập đơn, theo dõi tiến độ nhập nguyên liệu/sản phẩm và quản lý công nợ nhà cung cấp.</p>
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded-lg font-semibold glow-teal transition-all active:scale-95 cursor-pointer"
+          className="bg-primary text-on-primary px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 glow-button transition-all active:scale-95 cursor-pointer text-xs animate-in fade-in"
         >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          Lập đơn nhập hàng mới
+          <span className="material-symbols-outlined text-base">add</span>
+          <span>Lập đơn nhập hàng mới</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-white text-sm">Đang tải danh sách đơn nhập hàng...</div>
+        <div className="flex-1 flex items-center justify-center text-white text-sm">Đang tải danh sách đơn nhập hàng...</div>
       ) : (
         <>
           {/* Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="glass-surface p-6 rounded-xl group hover:border-primary/40 transition-colors">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-on-surface-variant text-sm font-semibold">Tổng tiền nhập hàng</span>
-                <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
-              </div>
-              <div className="text-xl font-bold text-white">
-                {formatVND(totalProcurement)}
-              </div>
-              <div className="mt-2 text-xs text-on-surface-variant">
-                Đơn hàng hoàn thành tháng này
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+            <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-warning bg-warning/10 p-2 rounded-lg text-lg">local_shipping</span>
+                <div>
+                  <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Số đơn nhập</p>
+                  <h3 className="text-sm font-bold text-on-surface">{totalOrders} Đơn</h3>
+                </div>
               </div>
             </div>
 
-            <div className="glass-surface p-6 rounded-xl group hover:border-warning/40 transition-colors">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-on-surface-variant text-sm font-semibold">Đơn hàng chờ nhận</span>
-                <span className="material-symbols-outlined text-warning">local_shipping</span>
-              </div>
-              <div className="text-xl font-bold text-white">{pendingShipments} Đơn hàng</div>
-              <div className="mt-2 text-xs text-on-surface-variant">
-                Đang vận chuyển / Chờ kiểm kho
-              </div>
-            </div>
-
-            <div className="glass-surface p-6 rounded-xl group hover:border-primary/40 transition-colors">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-on-surface-variant text-sm font-semibold">Số nhà phân phối</span>
-                <span className="material-symbols-outlined text-primary">handshake</span>
-              </div>
-              <div className="text-xl font-bold text-white">{uniqueSuppliers} Đối tác</div>
-              <div className="mt-2 text-xs text-on-surface-variant">
-                Đã thực hiện giao dịch nhập
+            <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-error bg-error/10 p-2 rounded-lg text-lg">credit_card_off</span>
+                <div>
+                  <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Tổng nợ nhà cung cấp</p>
+                  <h3 className="text-sm font-bold text-on-surface">{formatVND(totalDebt)}</h3>
+                </div>
               </div>
             </div>
 
-            <div className="glass-surface p-6 rounded-xl group hover:border-primary/40 transition-colors">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-on-surface-variant text-sm font-semibold">Tỉ lệ hoàn thành đơn</span>
-                <span className="material-symbols-outlined text-primary">pie_chart</span>
+            <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg text-lg">pie_chart</span>
+                <div>
+                  <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Hoàn thành đơn</p>
+                  <h3 className="text-sm font-bold text-on-surface">{completionRate}%</h3>
+                </div>
               </div>
-              <div className="text-xl font-bold text-white">
-                {orders.length > 0 ? Math.round((orders.filter(o => o.trangThai === 'Hoàn thành').length / orders.length) * 100) : 0}%
-              </div>
-              <div className="mt-2 text-xs text-on-surface-variant">
-                Tiến độ xử lý chuỗi cung ứng
+            </div>
+
+            <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg text-lg">account_balance_wallet</span>
+                <div>
+                  <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Tổng tiền nhập hàng</p>
+                  <h3 className="text-sm font-bold text-on-surface">{formatVND(totalProcurement)}</h3>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Main Table Section */}
-          <div className="glass-surface rounded-2xl overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 glass-surface rounded-xl overflow-hidden border border-white/5 mt-1">
+            {/* Filter Bar */}
+            <div className="p-3 border-b border-border-glass flex flex-wrap items-center justify-between gap-3 flex-shrink-0 bg-white/1">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search */}
+                <div className="relative w-56">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xs">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Tìm nhà cung cấp hoặc mã NH..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-surface-lowest border border-border-glass rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </div>
+
+                {/* Status */}
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="bg-surface-lowest border border-border-glass rounded-lg px-3 py-1.5 text-xs appearance-none focus:outline-none focus:ring-1 focus:ring-primary/50 text-white cursor-pointer outline-none"
+                  >
+                    <option value="Tất cả">Tất cả trạng thái</option>
+                    <option value="Chờ nhận">Chờ nhận</option>
+                    <option value="Hoàn thành">Hoàn thành</option>
+                    <option value="Hủy">Đã Hủy</option>
+                  </select>
+                </div>
+
+                {/* Dates */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="bg-surface-lowest border border-border-glass rounded-lg px-2 py-1 text-xs text-white outline-none cursor-pointer"
+                  />
+                  <span className="text-xs text-text-variant">đến</span>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="bg-surface-lowest border border-border-glass rounded-lg px-2 py-1 text-xs text-white outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={exportToCSV}
+                  className="px-3 py-1.5 text-xs font-semibold bg-white/5 border border-border-glass text-white rounded-lg hover:bg-white/10 flex items-center gap-1 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-xs">download</span> Xuất CSV
+                </button>
+                <span className="text-xs text-text-variant">Tìm thấy {filteredOrders.length} đơn nhập</span>
+              </div>
+            </div>
+
             {/* Table Content */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-white/[0.03] text-on-surface-variant uppercase text-[10px] tracking-widest font-bold">
-                  <tr>
-                    <th className="px-6 py-4 border-b border-border-glass">Mã đơn nhập</th>
-                    <th className="px-6 py-4 border-b border-border-glass">Nhà cung cấp</th>
-                    <th className="px-6 py-4 border-b border-border-glass">Ngày nhập</th>
-                    <th className="px-6 py-4 border-b border-border-glass">Tổng cộng</th>
-                    <th className="px-6 py-4 border-b border-border-glass">Đã thanh toán</th>
-                    <th className="px-6 py-4 border-b border-border-glass">Công nợ nợ</th>
-                    <th className="px-6 py-4 border-b border-border-glass text-center">Trạng thái</th>
-                    <th className="px-6 py-4 border-b border-border-glass text-center">Thao tác</th>
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-[#131929] shadow-[0_1px_0_0_rgba(255,255,255,0.08)]">
+                  <tr className="text-on-surface-variant uppercase text-[10px] tracking-wider font-bold border-b border-border-glass bg-[#131929]">
+                    <th className="px-4 py-3">Mã đơn nhập</th>
+                    <th className="px-4 py-3">Nhà cung cấp</th>
+                    <th className="px-4 py-3">Ngày nhập</th>
+                    <th className="px-4 py-3">Tổng cộng</th>
+                    <th className="px-4 py-3">Đã thanh toán</th>
+                    <th className="px-4 py-3">Công nợ</th>
+                    <th className="px-4 py-3 text-center">Trạng thái</th>
+                    <th className="px-4 py-3 text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
                   {filteredOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-6 py-4 font-mono text-primary text-sm font-bold">NH-{order.id}</td>
-                      <td className="px-6 py-4 font-semibold text-xs text-white">
+                      <td className="px-4 py-2.5 font-mono text-primary text-xs font-bold">NH-{order.id}</td>
+                      <td className="px-4 py-2.5 font-semibold text-xs text-white">
                         {order.doiTac ? order.doiTac.ten : '---'}
                       </td>
-                      <td className="px-6 py-4 text-on-surface-variant text-xs">
+                      <td className="px-4 py-2.5 text-on-surface-variant text-xs">
                         {new Date(order.thoiGian).toLocaleString('vi-VN')}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-xs text-white">
+                      <td className="px-4 py-2.5 font-semibold text-xs text-white">
                         {formatVND(order.tongTien)}
                       </td>
-                      <td className="px-6 py-4 text-xs text-success">{formatVND(order.daThanhToan)}</td>
-                      <td className="px-6 py-4 text-xs text-error font-semibold">{formatVND(order.tienNo)}</td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 py-2.5 text-xs text-success">{formatVND(order.daThanhToan)}</td>
+                      <td className="px-4 py-2.5 text-xs text-error font-semibold">{formatVND(order.tienNo)}</td>
+                      <td className="px-4 py-2.5 text-center">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider border ${order.trangThai === 'Hoàn thành'
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${order.trangThai === 'Hoàn thành'
                               ? 'bg-success/10 border-success/30 text-success'
                               : order.trangThai === 'Chờ nhận'
                                 ? 'bg-warning/10 border-warning/30 text-warning'
@@ -739,8 +747,8 @@ export default function PurchasesPage() {
                           {order.trangThai}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="px-4 py-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={async () => {
                               try {
@@ -753,10 +761,10 @@ export default function PurchasesPage() {
                                 console.error(err);
                               }
                             }}
-                            className="p-1 hover:bg-white/5 rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                            className="p-1 hover:bg-white/5 rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer inline-flex items-center justify-center"
                             title="Xem chi tiết"
                           >
-                            <span className="material-symbols-outlined text-sm">visibility</span>
+                            <span className="material-symbols-outlined text-lg">visibility</span>
                           </button>
 
                           <button
@@ -770,22 +778,45 @@ export default function PurchasesPage() {
                                 console.error(err);
                               }
                             }}
-                            className="p-1 hover:bg-white/5 rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                            className="p-1 hover:bg-white/5 rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer inline-flex items-center justify-center"
                             title="Chỉnh sửa đơn"
                           >
-                            <span className="material-symbols-outlined text-sm">edit</span>
+                            <span className="material-symbols-outlined text-lg">edit</span>
                           </button>
 
-                          {/* Quick Edit Dropdown */}
-                          <select
-                            value={order.trangThai}
-                            onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
-                            className="bg-surface-lowest text-[10px] text-white border border-border-glass rounded px-1.5 py-0.5 outline-none cursor-pointer"
-                          >
-                            <option value="Chờ nhận">Chờ nhận</option>
-                            <option value="Hoàn thành">Hoàn thành</option>
-                            <option value="Hủy">Hủy</option>
-                          </select>
+                          {/* Quick Edit Status Buttons */}
+                          {order.trangThai === 'Chờ nhận' && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  showConfirm(
+                                    "Xác nhận hoàn thành",
+                                    `Bạn có chắc chắn muốn xác nhận hoàn thành đơn nhập NH-${order.id}? Dữ liệu sẽ được cộng vào kho hàng.`,
+                                    () => handleUpdateStatus(order.id, 'Hoàn thành'),
+                                    'success'
+                                  );
+                                }}
+                                className="p-1 hover:bg-success/20 rounded text-success transition-colors cursor-pointer flex items-center justify-center"
+                                title="Hoàn thành"
+                              >
+                                <span className="material-symbols-outlined text-base font-bold">done</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  showConfirm(
+                                    "Xác nhận hủy đơn nhập",
+                                    `Bạn có chắc chắn muốn hủy đơn nhập hàng NH-${order.id}? Dữ liệu sẽ không được phục hồi.`,
+                                    () => handleUpdateStatus(order.id, 'Hủy'),
+                                    'error'
+                                  );
+                                }}
+                                className="p-1 hover:bg-error/20 rounded text-error transition-colors cursor-pointer flex items-center justify-center"
+                                title="Hủy đơn"
+                              >
+                                <span className="material-symbols-outlined text-base font-bold">close</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -794,20 +825,37 @@ export default function PurchasesPage() {
               </table>
             </div>
           </div>
+        </>
+      )}
 
-          {/* Create/Edit Purchase Order Modal */}
-          {isModalOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 overflow-y-auto bg-black/75 backdrop-blur-sm">
-              {/* Backdrop (no click event to prevent closing on background click) */}
-              <div className="absolute inset-0 bg-background/40"></div>
+      {/* Create/Edit Purchase Order Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 overflow-y-auto bg-black/75 backdrop-blur-sm">
+          <div className="absolute inset-0 bg-background/40" onClick={() => setIsModalOpen(false)}></div>
 
-              <div className="relative w-full max-w-6xl bg-[#0A0E17]/95 border border-white/[0.02] rounded-2xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+          <div className={`relative w-full ${isOcrOpen ? 'max-w-7xl' : 'max-w-6xl'} bg-[#0A0E17]/95 border border-white/[0.02] rounded-2xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]`}>
                 {/* Modal Header */}
                 <div className="py-2 px-6 border-b border-border-glass flex justify-between items-center bg-white/[0.02]">
-                  <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-lg">add_shopping_cart</span>
-                    {editingOrder ? `Chỉnh sửa đơn nhập NH-${editingOrder.id}` : 'Lập đơn nhập mới'}
-                  </h2>
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-lg">add_shopping_cart</span>
+                      {editingOrder ? `Chỉnh sửa đơn nhập NH-${editingOrder.id}` : 'Lập đơn nhập mới'}
+                    </h2>
+                    {!editingOrder && (
+                      <button
+                        type="button"
+                        onClick={() => setIsOcrOpen(!isOcrOpen)}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95 cursor-pointer ${
+                          isOcrOpen 
+                            ? 'bg-primary text-on-primary font-bold shadow-[0_0_10px_rgba(73,252,223,0.3)]' 
+                            : 'bg-white/5 border border-white/10 text-on-surface hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-xs">document_scanner</span>
+                        <span>{isOcrOpen ? 'Đang quét ảnh' : 'Quét ảnh hóa đơn (OCR)'}</span>
+                      </button>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className="p-1 hover:bg-white/10 rounded-full transition-colors text-on-surface-variant cursor-pointer flex items-center justify-center"
@@ -823,7 +871,45 @@ export default function PurchasesPage() {
                   </div>
                 )}
 
-                <form onSubmit={handleCreatePurchaseOrder} className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex overflow-hidden min-h-0">
+                  {isOcrOpen && !editingOrder && (
+                    <OcrScanner
+                      mode="purchases"
+                      availableProducts={availableProducts}
+                      onClose={() => setIsOcrOpen(false)}
+                      onApply={(ocrData) => {
+                        if (ocrData.invoiceId) {
+                          setFormNotes((prev) => {
+                            const prefix = `Quét từ HĐ: ${ocrData.invoiceId}`;
+                            if (prev && prev.includes(prefix)) return prev;
+                            return prev ? `${prev}\n${prefix}` : prefix;
+                          });
+                        }
+                        if (ocrData.date) {
+                          setFormNgayLap(ocrData.date);
+                        }
+                        
+                        // Map parsed items to ImportDetail format
+                        const mappedDetails = ocrData.items.map(item => {
+                          const prod = availableProducts.find(p => p.id === item.productId);
+                          return {
+                            sanPham: { id: item.productId },
+                            soLuong: item.qty,
+                            giaNhap: item.price,
+                            donVi: item.dvt || prod?.donViTinh?.tenDonVi || 'ly'
+                          };
+                        });
+                        
+                        if (mappedDetails.length > 0) {
+                          setPurchasedDetails(mappedDetails);
+                        }
+                        
+                        setIsOcrOpen(false);
+                      }}
+                    />
+                  )}
+
+                  <form onSubmit={handleCreatePurchaseOrder} className={`flex-col overflow-hidden ${isOcrOpen ? 'w-1/2 flex border-l border-white/5 bg-white/[0.005]' : 'flex-1 flex'}`}>
                   <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 pr-4">
 
                     {/* Row 1: Số HD/ID, Ngày tạo, Nhân viên */}
@@ -1158,6 +1244,7 @@ export default function PurchasesPage() {
                     </div>
                   </div>
                 </form>
+                </div>
               </div>
             </div>
           )}
@@ -1553,8 +1640,16 @@ export default function PurchasesPage() {
               </div>
             </div>
           )}
-        </>
-      )}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

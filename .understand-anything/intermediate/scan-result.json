@@ -1,0 +1,1241 @@
+{
+  "name": "BrewMaster Pro & WEB_CAFE (WEB_JENIKA)",
+  "description": "Hệ thống quản lý quán cà phê, kho hàng, và doanh thu đa nền tảng (Desktop & Web) toàn diện, chuyên nghiệp.",
+  "languages": [
+    "css",
+    "dockerfile",
+    "html",
+    "java",
+    "javascript",
+    "markdown",
+    "properties",
+    "sql",
+    "typescript",
+    "xml",
+    "yaml"
+  ],
+  "frameworks": [
+    "React",
+    "Next.js",
+    "TypeScript",
+    "TailwindCSS",
+    "Spring Boot",
+    "Hibernate/JPA",
+    "FlatLaf",
+    "Maven",
+    "Docker",
+    "MySQL"
+  ],
+  "files": [
+    {
+      "path": ".gitattributes",
+      "language": "unknown",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".understand-anything/.understandignore",
+      "language": "unknown",
+      "sizeLines": 59,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".understand-anything/config.json",
+      "language": "json",
+      "sizeLines": 3,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".understand-anything/fingerprints.json",
+      "language": "json",
+      "sizeLines": 11562,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".understand-anything/knowledge-graph.json",
+      "language": "json",
+      "sizeLines": 18558,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".understand-anything/meta.json",
+      "language": "json",
+      "sizeLines": 5,
+      "fileCategory": "config"
+    },
+    {
+      "path": "docker-compose.yml",
+      "language": "yaml",
+      "sizeLines": 30,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "import_data.sql",
+      "language": "sql",
+      "sizeLines": 740,
+      "fileCategory": "data"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 150,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "site/public/activity.html",
+      "language": "html",
+      "sizeLines": 514,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "site/public/expenses.html",
+      "language": "html",
+      "sizeLines": 530,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "site/public/index.html",
+      "language": "html",
+      "sizeLines": 515,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "site/public/inventory.html",
+      "language": "html",
+      "sizeLines": 574,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "site/public/partners.html",
+      "language": "html",
+      "sizeLines": 452,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "site/public/purchases.html",
+      "language": "html",
+      "sizeLines": 526,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "site/public/sales.html",
+      "language": "html",
+      "sizeLines": 557,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "site/public/settings.html",
+      "language": "html",
+      "sizeLines": 469,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "swing-app/check_db.bat",
+      "language": "batch",
+      "sizeLines": 13,
+      "fileCategory": "script"
+    },
+    {
+      "path": "swing-app/database/clear_data.sql",
+      "language": "sql",
+      "sizeLines": 26,
+      "fileCategory": "data"
+    },
+    {
+      "path": "swing-app/database/clear_tables.sql",
+      "language": "sql",
+      "sizeLines": 17,
+      "fileCategory": "data"
+    },
+    {
+      "path": "swing-app/database/init.sql",
+      "language": "sql",
+      "sizeLines": 505,
+      "fileCategory": "data"
+    },
+    {
+      "path": "swing-app/fix_bom.ps1",
+      "language": "powershell",
+      "sizeLines": 9,
+      "fileCategory": "script"
+    },
+    {
+      "path": "swing-app/pom.xml",
+      "language": "xml",
+      "sizeLines": 95,
+      "fileCategory": "config"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/AppFrame.java",
+      "language": "java",
+      "sizeLines": 130,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/DatePicker.java",
+      "language": "java",
+      "sizeLines": 476,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/MetricCard.java",
+      "language": "java",
+      "sizeLines": 100,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/Pagination.java",
+      "language": "java",
+      "sizeLines": 162,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/SearchableCellEditor.java",
+      "language": "java",
+      "sizeLines": 47,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/SearchableComboBox.java",
+      "language": "java",
+      "sizeLines": 203,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/Sidebar.java",
+      "language": "java",
+      "sizeLines": 274,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/StatusBadge.java",
+      "language": "java",
+      "sizeLines": 70,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/StyledTable.java",
+      "language": "java",
+      "sizeLines": 123,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/TopBar.java",
+      "language": "java",
+      "sizeLines": 119,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/components/WrapLayout.java",
+      "language": "java",
+      "sizeLines": 151,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/ConnectionDialog.java",
+      "language": "java",
+      "sizeLines": 228,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "language": "java",
+      "sizeLines": 82,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/Main.java",
+      "language": "java",
+      "sizeLines": 274,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/ActivityLogPanel.java",
+      "language": "java",
+      "sizeLines": 883,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/DashboardPanel.java",
+      "language": "java",
+      "sizeLines": 519,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/ExpensesPanel.java",
+      "language": "java",
+      "sizeLines": 679,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/InventoryPanel.java",
+      "language": "java",
+      "sizeLines": 1159,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/PartnerDialog.java",
+      "language": "java",
+      "sizeLines": 277,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/PartnerSearchDialog.java",
+      "language": "java",
+      "sizeLines": 256,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/PartnersPanel.java",
+      "language": "java",
+      "sizeLines": 393,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/ProductDialog.java",
+      "language": "java",
+      "sizeLines": 730,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/PurchaseOrderDialog.java",
+      "language": "java",
+      "sizeLines": 1820,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/PurchasesPanel.java",
+      "language": "java",
+      "sizeLines": 1067,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/SalesOrderDialog.java",
+      "language": "java",
+      "sizeLines": 2053,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/SalesOrdersPanel.java",
+      "language": "java",
+      "sizeLines": 1456,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/SettingsPanel.java",
+      "language": "java",
+      "sizeLines": 330,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/StaffDialog.java",
+      "language": "java",
+      "sizeLines": 301,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/panels/TransactionDialog.java",
+      "language": "java",
+      "sizeLines": 656,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "language": "java",
+      "sizeLines": 125,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/util/ActivityLogger.java",
+      "language": "java",
+      "sizeLines": 60,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/util/DocxExporter.java",
+      "language": "java",
+      "sizeLines": 579,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/util/ExcelExporter.java",
+      "language": "java",
+      "sizeLines": 1194,
+      "fileCategory": "code"
+    },
+    {
+      "path": "swing-app/src/main/java/com/brewmaster/util/StoreConfig.java",
+      "language": "java",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/.mvn/wrapper/maven-wrapper.properties",
+      "language": "properties",
+      "sizeLines": 3,
+      "fileCategory": "config"
+    },
+    {
+      "path": "web/Backend/database/clear_data.sql",
+      "language": "sql",
+      "sizeLines": 26,
+      "fileCategory": "data"
+    },
+    {
+      "path": "web/Backend/database/init.sql",
+      "language": "sql",
+      "sizeLines": 505,
+      "fileCategory": "data"
+    },
+    {
+      "path": "web/Backend/mvnw",
+      "language": "unknown",
+      "sizeLines": 295,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/mvnw.cmd",
+      "language": "batch",
+      "sizeLines": 189,
+      "fileCategory": "script"
+    },
+    {
+      "path": "web/Backend/pom.xml",
+      "language": "xml",
+      "sizeLines": 72,
+      "fileCategory": "config"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/config/WebConfig.java",
+      "language": "java",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/controller/BanHangController.java",
+      "language": "java",
+      "sizeLines": 76,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/controller/BaoCaoController.java",
+      "language": "java",
+      "sizeLines": 48,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/controller/MetadataController.java",
+      "language": "java",
+      "sizeLines": 94,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/controller/NhapHangController.java",
+      "language": "java",
+      "sizeLines": 55,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/controller/SanPhamController.java",
+      "language": "java",
+      "sizeLines": 82,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/controller/ThuChiController.java",
+      "language": "java",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/BanHangDTO.java",
+      "language": "java",
+      "sizeLines": 76,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/ChiTietBanHangDTO.java",
+      "language": "java",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/ChiTietNhapHangDTO.java",
+      "language": "java",
+      "sizeLines": 46,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/DanhMucDTO.java",
+      "language": "java",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/DoiTacDTO.java",
+      "language": "java",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/DonViTinhDTO.java",
+      "language": "java",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/NhanVienDTO.java",
+      "language": "java",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/NhapHangDTO.java",
+      "language": "java",
+      "sizeLines": 76,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/NhomSanPhamDTO.java",
+      "language": "java",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/SanPhamDTO.java",
+      "language": "java",
+      "sizeLines": 59,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/dto/ThuChiDTO.java",
+      "language": "java",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java",
+      "language": "java",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietBanHang.java",
+      "language": "java",
+      "sizeLines": 46,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHang.java",
+      "language": "java",
+      "sizeLines": 42,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHangId.java",
+      "language": "java",
+      "sizeLines": 36,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/DanhMuc.java",
+      "language": "java",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/DoiTac.java",
+      "language": "java",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/DonViTinh.java",
+      "language": "java",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/LoaiThuChi.java",
+      "language": "java",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/NhanVien.java",
+      "language": "java",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/NhapHang.java",
+      "language": "java",
+      "sizeLines": 54,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/NhatKy.java",
+      "language": "java",
+      "sizeLines": 34,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/NhomSanPham.java",
+      "language": "java",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java",
+      "language": "java",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/model/ThuChi.java",
+      "language": "java",
+      "sizeLines": 54,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/BanHangRepository.java",
+      "language": "java",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/ChiTietBanHangRepository.java",
+      "language": "java",
+      "sizeLines": 26,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/ChiTietNhapHangRepository.java",
+      "language": "java",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/DanhMucRepository.java",
+      "language": "java",
+      "sizeLines": 9,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/DoiTacRepository.java",
+      "language": "java",
+      "sizeLines": 9,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/DonViTinhRepository.java",
+      "language": "java",
+      "sizeLines": 9,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/LoaiThuChiRepository.java",
+      "language": "java",
+      "sizeLines": 9,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/NhanVienRepository.java",
+      "language": "java",
+      "sizeLines": 9,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/NhapHangRepository.java",
+      "language": "java",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/NhatKyRepository.java",
+      "language": "java",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/NhomSanPhamRepository.java",
+      "language": "java",
+      "sizeLines": 9,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/SanPhamRepository.java",
+      "language": "java",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/repository/ThuChiRepository.java",
+      "language": "java",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/BanHangService.java",
+      "language": "java",
+      "sizeLines": 315,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/BaoCaoService.java",
+      "language": "java",
+      "sizeLines": 225,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/DanhMucService.java",
+      "language": "java",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/DoiTacService.java",
+      "language": "java",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/DonViTinhService.java",
+      "language": "java",
+      "sizeLines": 17,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/LoaiThuChiService.java",
+      "language": "java",
+      "sizeLines": 17,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/NhanVienService.java",
+      "language": "java",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/NhapHangService.java",
+      "language": "java",
+      "sizeLines": 376,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/NhatKyService.java",
+      "language": "java",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/NhomSanPhamService.java",
+      "language": "java",
+      "sizeLines": 34,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/SanPhamService.java",
+      "language": "java",
+      "sizeLines": 129,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/service/ThuChiService.java",
+      "language": "java",
+      "sizeLines": 80,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/java/com/cafe/jenika/WebCafeApplication.java",
+      "language": "java",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Backend/src/main/resources/application.properties",
+      "language": "properties",
+      "sizeLines": 18,
+      "fileCategory": "config"
+    },
+    {
+      "path": "web/Frontend/eslint.config.mjs",
+      "language": "javascript",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/next-env.d.ts",
+      "language": "typescript",
+      "sizeLines": 6,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/next.config.ts",
+      "language": "typescript",
+      "sizeLines": 7,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/package.json",
+      "language": "json",
+      "sizeLines": 27,
+      "fileCategory": "config"
+    },
+    {
+      "path": "web/Frontend/postcss.config.mjs",
+      "language": "javascript",
+      "sizeLines": 7,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/activity/page.tsx",
+      "language": "typescript",
+      "sizeLines": 232,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/excel-config/page.tsx",
+      "language": "typescript",
+      "sizeLines": 449,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/expenses/page.tsx",
+      "language": "typescript",
+      "sizeLines": 518,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/globals.css",
+      "language": "css",
+      "sizeLines": 114,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "web/Frontend/src/app/inventory/page.tsx",
+      "language": "typescript",
+      "sizeLines": 1257,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/layout.tsx",
+      "language": "typescript",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/page.tsx",
+      "language": "typescript",
+      "sizeLines": 327,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/partners/page.tsx",
+      "language": "typescript",
+      "sizeLines": 307,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/purchases/page.tsx",
+      "language": "typescript",
+      "sizeLines": 1560,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/sales/page.tsx",
+      "language": "typescript",
+      "sizeLines": 1821,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/app/settings/page.tsx",
+      "language": "typescript",
+      "sizeLines": 340,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/components/Header.tsx",
+      "language": "typescript",
+      "sizeLines": 68,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/components/Pagination.tsx",
+      "language": "typescript",
+      "sizeLines": 190,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/src/components/Sidebar.tsx",
+      "language": "typescript",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/Frontend/tsconfig.json",
+      "language": "json",
+      "sizeLines": 34,
+      "fileCategory": "config"
+    }
+  ],
+  "totalFiles": 142,
+  "filteredByIgnore": 0,
+  "estimatedComplexity": "moderate",
+  "importMap": {
+    ".gitattributes": [],
+    ".understand-anything/.understandignore": [],
+    ".understand-anything/config.json": [],
+    ".understand-anything/fingerprints.json": [],
+    ".understand-anything/knowledge-graph.json": [],
+    ".understand-anything/meta.json": [],
+    "docker-compose.yml": [],
+    "import_data.sql": [],
+    "README.md": [],
+    "site/public/activity.html": [],
+    "site/public/expenses.html": [],
+    "site/public/index.html": [],
+    "site/public/inventory.html": [],
+    "site/public/partners.html": [],
+    "site/public/purchases.html": [],
+    "site/public/sales.html": [],
+    "site/public/settings.html": [],
+    "swing-app/check_db.bat": [],
+    "swing-app/database/clear_data.sql": [],
+    "swing-app/database/clear_tables.sql": [],
+    "swing-app/database/init.sql": [],
+    "swing-app/fix_bom.ps1": [],
+    "swing-app/pom.xml": [],
+    "swing-app/src/main/java/com/brewmaster/AppFrame.java": [
+      "swing-app/src/main/java/com/brewmaster/components/Sidebar.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/DatePicker.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/MetricCard.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/Pagination.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/SearchableCellEditor.java": [],
+    "swing-app/src/main/java/com/brewmaster/components/SearchableComboBox.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/Sidebar.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/StatusBadge.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/StyledTable.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/TopBar.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/components/WrapLayout.java": [],
+    "swing-app/src/main/java/com/brewmaster/ConnectionDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java": [],
+    "swing-app/src/main/java/com/brewmaster/Main.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/ActivityLogPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/DashboardPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/AppFrame.java",
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/ExpensesPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "swing-app/src/main/java/com/brewmaster/util/ActivityLogger.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/InventoryPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/PartnerDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/PartnerSearchDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/PartnersPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/ProductDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/PurchaseOrderDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/components/DatePicker.java",
+      "swing-app/src/main/java/com/brewmaster/components/SearchableCellEditor.java",
+      "swing-app/src/main/java/com/brewmaster/components/SearchableComboBox.java",
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "swing-app/src/main/java/com/brewmaster/util/ActivityLogger.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/PurchasesPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "swing-app/src/main/java/com/brewmaster/util/ExcelExporter.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/SalesOrderDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/components/SearchableCellEditor.java",
+      "swing-app/src/main/java/com/brewmaster/components/SearchableComboBox.java",
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "swing-app/src/main/java/com/brewmaster/util/ActivityLogger.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/SalesOrdersPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "swing-app/src/main/java/com/brewmaster/util/ExcelExporter.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/SettingsPanel.java": [
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "swing-app/src/main/java/com/brewmaster/util/StoreConfig.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/StaffDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/panels/TransactionDialog.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java",
+      "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java",
+      "swing-app/src/main/java/com/brewmaster/util/ActivityLogger.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/theme/AppTheme.java": [],
+    "swing-app/src/main/java/com/brewmaster/util/ActivityLogger.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/util/DocxExporter.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/util/ExcelExporter.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java"
+    ],
+    "swing-app/src/main/java/com/brewmaster/util/StoreConfig.java": [
+      "swing-app/src/main/java/com/brewmaster/db/DatabaseManager.java"
+    ],
+    "web/Backend/.mvn/wrapper/maven-wrapper.properties": [],
+    "web/Backend/database/clear_data.sql": [],
+    "web/Backend/database/init.sql": [],
+    "web/Backend/mvnw": [],
+    "web/Backend/mvnw.cmd": [],
+    "web/Backend/pom.xml": [],
+    "web/Backend/src/main/java/com/cafe/jenika/config/WebConfig.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/controller/BanHangController.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/BanHangDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/service/BanHangService.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/controller/BaoCaoController.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/service/BaoCaoService.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/controller/MetadataController.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/controller/NhapHangController.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/NhapHangDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/service/NhapHangService.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/controller/SanPhamController.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/SanPhamDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/service/SanPhamService.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/controller/ThuChiController.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/ThuChiDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/service/ThuChiService.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/BanHangDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/ChiTietBanHangDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietBanHang.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/ChiTietNhapHangDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHangId.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/DanhMucDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DanhMuc.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/DoiTacDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DoiTac.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/DonViTinhDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DonViTinh.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/NhanVienDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhanVien.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/NhapHangDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhapHang.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/NhomSanPhamDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhomSanPham.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/SanPhamDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/dto/ThuChiDTO.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/ThuChi.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietBanHang.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHang.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHangId.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/DanhMuc.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/DoiTac.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/DonViTinh.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/LoaiThuChi.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/NhanVien.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/NhapHang.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/NhatKy.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/NhomSanPham.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/model/ThuChi.java": [],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/BanHangRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/ChiTietBanHangRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietBanHang.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/ChiTietNhapHangRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHangId.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/DanhMucRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DanhMuc.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/DoiTacRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DoiTac.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/DonViTinhRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DonViTinh.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/LoaiThuChiRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/LoaiThuChi.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/NhanVienRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhanVien.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/NhapHangRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhapHang.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/NhatKyRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhatKy.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/NhomSanPhamRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhomSanPham.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/SanPhamRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/repository/ThuChiRepository.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/ThuChi.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/BanHangService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/BanHangDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietBanHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/BanHangRepository.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/SanPhamRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/BaoCaoService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/BanHangDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/dto/NhapHangDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/dto/SanPhamDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/BanHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietBanHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/ChiTietBanHangRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/DanhMucService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DanhMuc.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/DanhMucRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/DoiTacService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DoiTac.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/DoiTacRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/DonViTinhService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/DonViTinh.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/DonViTinhRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/LoaiThuChiService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/LoaiThuChi.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/LoaiThuChiRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/NhanVienService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhanVien.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/NhanVienRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/NhapHangService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/NhapHangDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/ChiTietNhapHangId.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhapHang.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/NhapHangRepository.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/SanPhamRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/NhatKyService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhatKy.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/NhatKyRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/NhomSanPhamService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/model/NhomSanPham.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/NhomSanPhamRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/SanPhamService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/SanPhamDTO.java",
+      "web/Backend/src/main/java/com/cafe/jenika/model/SanPham.java",
+      "web/Backend/src/main/java/com/cafe/jenika/repository/SanPhamRepository.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/service/ThuChiService.java": [
+      "web/Backend/src/main/java/com/cafe/jenika/dto/ThuChiDTO.java"
+    ],
+    "web/Backend/src/main/java/com/cafe/jenika/WebCafeApplication.java": [],
+    "web/Backend/src/main/resources/application.properties": [],
+    "web/Frontend/eslint.config.mjs": [],
+    "web/Frontend/next-env.d.ts": [],
+    "web/Frontend/next.config.ts": [],
+    "web/Frontend/package.json": [],
+    "web/Frontend/postcss.config.mjs": [],
+    "web/Frontend/src/app/activity/page.tsx": [],
+    "web/Frontend/src/app/excel-config/page.tsx": [],
+    "web/Frontend/src/app/expenses/page.tsx": [],
+    "web/Frontend/src/app/globals.css": [],
+    "web/Frontend/src/app/inventory/page.tsx": [
+      "web/Frontend/src/components/Pagination.tsx"
+    ],
+    "web/Frontend/src/app/layout.tsx": [
+      "web/Frontend/src/app/globals.css",
+      "web/Frontend/src/components/Sidebar.tsx"
+    ],
+    "web/Frontend/src/app/page.tsx": [],
+    "web/Frontend/src/app/partners/page.tsx": [
+      "web/Frontend/src/components/Pagination.tsx"
+    ],
+    "web/Frontend/src/app/purchases/page.tsx": [],
+    "web/Frontend/src/app/sales/page.tsx": [],
+    "web/Frontend/src/app/settings/page.tsx": [],
+    "web/Frontend/src/components/Header.tsx": [],
+    "web/Frontend/src/components/Pagination.tsx": [],
+    "web/Frontend/src/components/Sidebar.tsx": [],
+    "web/Frontend/tsconfig.json": []
+  }
+}
