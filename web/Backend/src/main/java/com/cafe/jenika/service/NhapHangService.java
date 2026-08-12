@@ -9,9 +9,15 @@ import com.cafe.jenika.repository.NhapHangRepository;
 import com.cafe.jenika.repository.SanPhamRepository;
 import com.cafe.jenika.repository.ThuChiRepository;
 import com.cafe.jenika.repository.LoaiThuChiRepository;
+import com.cafe.jenika.repository.NhapHangSpecification;
 import com.cafe.jenika.model.ThuChi;
 import com.cafe.jenika.model.LoaiThuChi;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -19,6 +25,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.cafe.jenika.model.StoreConfig;
+import com.cafe.jenika.repository.StoreConfigRepository;
+import com.cafe.jenika.util.ExcelExporter;
 
 @Service
 public class NhapHangService {
@@ -38,10 +47,28 @@ public class NhapHangService {
     @Autowired
     private NhatKyService nhatKyService;
 
+    @Autowired
+    private StoreConfigRepository storeConfigRepository;
+
+    @Autowired
+    private S3Service s3Service;
+
     public List<NhapHangDTO> getAllImportOrders() {
         return nhapHangRepository.findAllByOrderByThoiGianDesc().stream()
                 .map(NhapHangDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public Page<NhapHangDTO> getImportOrdersPaginated(
+            int page,
+            int size,
+            String search,
+            String status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "thoiGian"));
+        Specification<NhapHang> spec = NhapHangSpecification.filterPurchases(search, status, fromDate, toDate);
+        return nhapHangRepository.findAll(spec, pageable).map(NhapHangDTO::fromEntity);
     }
 
     public Optional<NhapHangDTO> getImportOrderById(Integer id) {
@@ -51,6 +78,9 @@ public class NhapHangService {
     @Transactional
     public NhapHangDTO createImportOrder(NhapHangDTO orderDTO) {
         NhapHang order = orderDTO.toEntity();
+        if (order.getAnhHoaDonUrl() != null && !order.getAnhHoaDonUrl().trim().isEmpty()) {
+            order.setAnhHoaDonUrl(s3Service.confirmFile(order.getAnhHoaDonUrl()));
+        }
         if (order.getThoiGian() == null) {
             order.setThoiGian(LocalDateTime.now());
         }
@@ -96,7 +126,7 @@ public class NhapHangService {
                         SanPham newSp = SanPham.builder()
                                 .tenSanPham(baseName)
                                 .giaNhapHienTai(detail.getGiaNhap())
-                                .giaBanHienTai(sp.getGiaBanHienTai())
+                                .giaBanHienTai(detail.getGiaNhap())
                                 .soLuongTon(0)
                                 .canhBaoTonKho(sp.getCanhBaoTonKho())
                                 .trangThai("Hết hàng")
@@ -289,6 +319,12 @@ public class NhapHangService {
         existingOrder.setTrangThai(updatedOrder.getTrangThai());
         existingOrder.setDaThanhToan(updatedOrder.getDaThanhToan());
         existingOrder.setGhiChu(updatedOrder.getGhiChu());
+        
+        String confirmedUrl = updatedOrder.getAnhHoaDonUrl();
+        if (confirmedUrl != null && !confirmedUrl.trim().isEmpty()) {
+            confirmedUrl = s3Service.confirmFile(confirmedUrl);
+        }
+        existingOrder.setAnhHoaDonUrl(confirmedUrl);
 
         BigDecimal calculatedTotal = BigDecimal.ZERO;
         boolean isReceivedNow = "Hoàn thành".equalsIgnoreCase(updatedOrder.getTrangThai()) || "Đã nhận".equalsIgnoreCase(updatedOrder.getTrangThai());
@@ -316,7 +352,7 @@ public class NhapHangService {
                         SanPham newSp = SanPham.builder()
                                 .tenSanPham(baseName)
                                 .giaNhapHienTai(detail.getGiaNhap())
-                                .giaBanHienTai(sp.getGiaBanHienTai())
+                                .giaBanHienTai(detail.getGiaNhap())
                                 .soLuongTon(0)
                                 .canhBaoTonKho(sp.getCanhBaoTonKho())
                                 .trangThai("Hết hàng")
@@ -438,4 +474,86 @@ public class NhapHangService {
         nhatKyService.log(logAction, "thu_chi", "TC-" + saved.getId(),
                 "Tự động đồng bộ khoản chi từ đơn nhập hàng NH-" + order.getId() + ". Số tiền: " + paid + "đ");
     }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> getImportOrderStats(LocalDateTime fromDate, LocalDateTime toDate) {
+        Specification<NhapHang> spec = NhapHangSpecification.filterPurchases(null, null, fromDate, toDate);
+        List<NhapHang> list = nhapHangRepository.findAll(spec);
+        
+        java.math.BigDecimal totalProcurement = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal totalDebt = java.math.BigDecimal.ZERO;
+        long totalOrders = list.size();
+        long completedOrders = 0;
+
+        for (NhapHang nh : list) {
+            if ("Hoàn thành".equalsIgnoreCase(nh.getTrangThai())) {
+                completedOrders++;
+                if (nh.getTongTien() != null) {
+                    totalProcurement = totalProcurement.add(nh.getTongTien());
+                }
+            }
+            if (nh.getTienNo() != null) {
+                totalDebt = totalDebt.add(nh.getTienNo());
+            }
+        }
+
+        long completionRate = totalOrders > 0 ? Math.round((double) completedOrders / totalOrders * 100) : 0;
+
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("totalProcurement", totalProcurement);
+        stats.put("totalDebt", totalDebt);
+        stats.put("totalOrders", totalOrders);
+        stats.put("completionRate", completionRate);
+        return stats;
+    }
+
+    @Transactional
+    public void deletePurchaseOrder(Integer id) {
+        NhapHang order = nhapHangRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn nhập hàng ID: " + id));
+        
+        // Revert stock if order was received/completed
+        boolean isReceived = "Hoàn thành".equalsIgnoreCase(order.getTrangThai()) || "Đã nhận".equalsIgnoreCase(order.getTrangThai());
+        if (isReceived && order.getChiTietNhapHangs() != null) {
+            for (ChiTietNhapHang detail : order.getChiTietNhapHangs()) {
+                SanPham sp = detail.getSanPham();
+                if (sp.getSoLuongTon() < detail.getSoLuong()) {
+                    throw new IllegalStateException("Không thể xóa đơn nhập vì sản phẩm '" + sp.getTenSanPham() + "' đã được bán hoặc sử dụng, khiến tồn kho không đủ.");
+                }
+                sp.setSoLuongTon(sp.getSoLuongTon() - detail.getSoLuong());
+                sp.updateTrangThai();
+                sanPhamRepository.save(sp);
+            }
+        }
+        
+        // Delete associated ThuChi sync
+        Optional<ThuChi> existingOpt = thuChiRepository.findByNhapHang(order);
+        existingOpt.ifPresent(thuChi -> {
+            thuChiRepository.delete(thuChi);
+            nhatKyService.log("XOA", "thu_chi", "TC-" + thuChi.getId(),
+                    "Tự động xóa khoản chi do đơn nhập hàng NH-" + order.getId() + " bị xóa.");
+        });
+
+        nhapHangRepository.delete(order);
+        nhatKyService.log("XOA", "nhap_hang", "NH-" + id, "Xóa đơn nhập hàng ID: " + id);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportPurchaseOrderToExcel(Integer id) throws Exception {
+        NhapHang order = nhapHangRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn nhập hàng ID: " + id));
+        if (order.getChiTietNhapHangs() != null) {
+            order.getChiTietNhapHangs().forEach(ct -> {
+                if (ct.getSanPham() != null) {
+                    ct.getSanPham().getTenSanPham();
+                    if (ct.getSanPham().getDonViTinh() != null) {
+                        ct.getSanPham().getDonViTinh().getTenDonVi();
+                    }
+                }
+            });
+        }
+        StoreConfig config = storeConfigRepository.findById(1).orElse(new StoreConfig());
+        return ExcelExporter.exportPurchaseOrder(order, config);
+    }
 }
+

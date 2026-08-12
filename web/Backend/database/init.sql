@@ -42,6 +42,7 @@ CREATE TABLE `ban_hang` (
   `ngay_lap` date DEFAULT NULL COMMENT 'Ngày lắp đặt máy',
   `trang_thai` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'Hẹn' COMMENT 'Trạng thái: Hoàn thành | Hẹn | Hủy',
   `ghi_chu` text COLLATE utf8mb4_general_ci,
+  `anh_hoa_don_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `id_doi_tac` (`id_doi_tac`),
   KEY `id_nhan_vien` (`id_nhan_vien`),
@@ -193,7 +194,7 @@ CREATE TABLE `don_vi_tinh` (
 
 LOCK TABLES `don_vi_tinh` WRITE;
 /*!40000 ALTER TABLE `don_vi_tinh` DISABLE KEYS */;
-INSERT INTO `don_vi_tinh` VALUES (1,'cái'),(2,'gam'),(3,'bộ'),(4,'kg');
+INSERT INTO `don_vi_tinh` VALUES (1,'cái'),(2,'kg'),(3,'bộ'),(4,'kg');
 /*!40000 ALTER TABLE `don_vi_tinh` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -266,6 +267,7 @@ CREATE TABLE `nhap_hang` (
   `id_doi_tac` int DEFAULT NULL COMMENT 'FK → doi_tac (nhà cung cấp của đơn nhập)',
   `id_nhan_vien` int DEFAULT NULL,
   `ghi_chu` text COLLATE utf8mb4_general_ci,
+  `anh_hoa_don_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `id_doi_tac` (`id_doi_tac`),
   KEY `id_nhan_vien` (`id_nhan_vien`),

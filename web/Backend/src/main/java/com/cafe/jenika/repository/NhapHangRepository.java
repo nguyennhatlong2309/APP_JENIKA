@@ -2,6 +2,7 @@ package com.cafe.jenika.repository;
 
 import com.cafe.jenika.model.NhapHang;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,7 +10,16 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface NhapHangRepository extends JpaRepository<NhapHang, Integer> {
+public interface NhapHangRepository extends JpaRepository<NhapHang, Integer>, JpaSpecificationExecutor<NhapHang> {
+    @Query("SELECT DISTINCT n FROM NhapHang n " +
+           "LEFT JOIN FETCH n.doiTac " +
+           "LEFT JOIN FETCH n.nhanVien " +
+           "LEFT JOIN FETCH n.chiTietNhapHangs ct " +
+           "LEFT JOIN FETCH ct.sanPham sp " +
+           "LEFT JOIN FETCH sp.danhMuc " +
+           "LEFT JOIN FETCH sp.donViTinh " +
+           "LEFT JOIN FETCH sp.nhomSanPham " +
+           "ORDER BY n.thoiGian DESC")
     List<NhapHang> findAllByOrderByThoiGianDesc();
 
     @Modifying

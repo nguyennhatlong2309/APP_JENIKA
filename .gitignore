@@ -71,3 +71,15 @@ installer
 **/AGENT.md
 **/CLAUDE.md
 **/AGENTS.md
+
+# Local/temporary SQL files
+/*.sql
+
+# Deployment plans
+*deployment_plan.md
+
+# Local scratch and test files
+scratch/
+zExamImportImage/
+jenkam_skill.md
+zcommand

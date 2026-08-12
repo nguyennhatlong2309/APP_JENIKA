@@ -72,14 +72,54 @@ public class MetadataController {
         return ResponseEntity.ok(nhanVienService.save(nhanVien));
     }
 
+    @PutMapping("/nhan-vien/{id}")
+    public ResponseEntity<NhanVien> updateEmployee(@PathVariable Integer id, @RequestBody NhanVien nhanVien) {
+        nhanVien.setId(id);
+        return ResponseEntity.ok(nhanVienService.save(nhanVien));
+    }
+
+    @DeleteMapping("/nhan-vien/{id}")
+    public ResponseEntity<Void> deleteEmployee(@PathVariable Integer id) {
+        nhanVienService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/nhan-vien/page")
+    public ResponseEntity<org.springframework.data.domain.Page<NhanVien>> getEmployeesPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(nhanVienService.getEmployeesPaginated(page, size, search));
+    }
+
     @GetMapping("/doi-tac")
     public ResponseEntity<List<DoiTac>> getPartners() {
         return ResponseEntity.ok(doiTacService.getAll());
     }
 
+    @GetMapping("/doi-tac/page")
+    public ResponseEntity<org.springframework.data.domain.Page<DoiTac>> getPartnersPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(doiTacService.getPartnersPaginated(page, size, search));
+    }
+
     @PostMapping("/doi-tac")
     public ResponseEntity<DoiTac> createPartner(@RequestBody DoiTac doiTac) {
         return ResponseEntity.ok(doiTacService.save(doiTac));
+    }
+
+    @PutMapping("/doi-tac/{id}")
+    public ResponseEntity<DoiTac> updatePartner(@PathVariable Integer id, @RequestBody DoiTac doiTac) {
+        doiTac.setId(id);
+        return ResponseEntity.ok(doiTacService.save(doiTac));
+    }
+
+    @DeleteMapping("/doi-tac/{id}")
+    public ResponseEntity<Void> deletePartner(@PathVariable Integer id) {
+        doiTacService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/loai-thu-chi")
@@ -90,5 +130,15 @@ public class MetadataController {
     @GetMapping("/nhat-ky")
     public ResponseEntity<List<NhatKy>> getLogs() {
         return ResponseEntity.ok(nhatKyService.getAllLogs());
+    }
+
+    @GetMapping("/nhat-ky/page")
+    public ResponseEntity<org.springframework.data.domain.Page<NhatKy>> getLogsPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String thaoTac,
+            @RequestParam(required = false) String tab) {
+        return ResponseEntity.ok(nhatKyService.getLogsPaginated(page, size, search, thaoTac, tab));
     }
 }

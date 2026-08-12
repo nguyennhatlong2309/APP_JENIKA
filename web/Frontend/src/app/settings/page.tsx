@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Employee {
   email: string;
@@ -18,7 +18,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
 
 export default function SettingsPage() {
   // Store form states
-  const [storeName, setStoreName] = useState('CAFE DI ROM');
+  const [storeName, setStoreName] = useState('JenkaM');
   const [supportEmail, setSupportEmail] = useState('support@cafe-di-rom.vn');
   const [hotline, setHotline] = useState('+84 923 456 789');
   const [currency, setCurrency] = useState('VND (₫)');
@@ -26,7 +26,22 @@ export default function SettingsPage() {
 
   // Design system settings states
   const [selectedAccent, setSelectedAccent] = useState('#03DFC3');
-  const [selectedTheme, setSelectedTheme] = useState('Giao diện tối');
+  const [selectedTheme, setSelectedTheme] = useState('Giao diện sáng');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'Giao diện sáng';
+    setSelectedTheme(savedTheme);
+  }, []);
+
+  const handleThemeChange = (theme: string) => {
+    setSelectedTheme(theme);
+    localStorage.setItem('theme', theme);
+    if (theme === 'Giao diện sáng') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+  };
 
   // Employee data list state
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
@@ -69,7 +84,7 @@ export default function SettingsPage() {
           <button 
             type="button"
             onClick={() => {
-              setStoreName('CAFE DI ROM');
+              setStoreName('JenkaM');
               setSupportEmail('support@cafe-di-rom.vn');
               setHotline('+84 923 456 789');
               setCurrency('VND (₫)');
@@ -192,7 +207,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setSelectedTheme('Giao diện tối')}
+                    onClick={() => handleThemeChange('Giao diện tối')}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border transition-all cursor-pointer ${
                       selectedTheme === 'Giao diện tối'
                         ? 'bg-surface-highest/40 border-primary text-primary font-bold shadow-[0_0_10px_rgba(73,252,223,0.2)]'
@@ -204,7 +219,7 @@ export default function SettingsPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedTheme('Giao diện sáng')}
+                    onClick={() => handleThemeChange('Giao diện sáng')}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border transition-all cursor-pointer ${
                       selectedTheme === 'Giao diện sáng'
                         ? 'bg-surface-highest/40 border-primary text-primary font-bold shadow-[0_0_10px_rgba(73,252,223,0.2)]'

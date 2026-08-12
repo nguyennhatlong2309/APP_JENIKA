@@ -1,6 +1,14 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
 async function handleResponse(response: Response) {
+  if (response.status === 401 || response.status === 403) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+  }
+
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
     throw new Error(errorText || `HTTP error! status: ${response.status}`);
@@ -18,13 +26,26 @@ async function handleResponse(response: Response) {
   }
 }
 
+function getHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  
+  return headers;
+}
+
 export const api = {
   async get<T>(path: string): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
     });
     return handleResponse(response);
   },
@@ -32,9 +53,7 @@ export const api = {
   async post<T>(path: string, body: any): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify(body),
     });
     return handleResponse(response);
@@ -43,9 +62,7 @@ export const api = {
   async put<T>(path: string, body?: any): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     return handleResponse(response);
@@ -54,9 +71,23 @@ export const api = {
   async delete<T>(path: string): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async upload<T>(path: string, formData: FormData): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    const response = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
     });
     return handleResponse(response);
   },

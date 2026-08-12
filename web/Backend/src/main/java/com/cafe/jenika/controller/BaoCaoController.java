@@ -45,4 +45,27 @@ public class BaoCaoController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @GetMapping("/san-pham-nhap")
+    public ResponseEntity<?> getProductImports(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        try {
+            return ResponseEntity.ok(baoCaoService.getProductImports(search, fromDate, toDate));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/san-pham-nhap/stats")
+    public ResponseEntity<?> getProductImportsStats(
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        try {
+            return ResponseEntity.ok(baoCaoService.getProductImportsStats(fromDate, toDate));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

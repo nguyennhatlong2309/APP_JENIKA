@@ -4,6 +4,11 @@ import com.cafe.jenika.dto.ThuChiDTO;
 import com.cafe.jenika.model.*;
 import com.cafe.jenika.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -35,6 +40,31 @@ public class ThuChiService {
         return thuChiRepository.findAllByOrderByThoiGianDesc().stream()
                 .map(ThuChiDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public Page<ThuChiDTO> getTransactionsPaginated(
+            int page,
+            int size,
+            String search,
+            Integer categoryId,
+            String status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate) {
+        return getTransactionsPaginated(page, size, search, categoryId, status, fromDate, toDate, null);
+    }
+
+    public Page<ThuChiDTO> getTransactionsPaginated(
+            int page,
+            int size,
+            String search,
+            Integer categoryId,
+            String status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            String transactionType) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "thoiGian"));
+        Specification<ThuChi> spec = ThuChiSpecification.filterTransactions(search, categoryId, status, fromDate, toDate, transactionType);
+        return thuChiRepository.findAll(spec, pageable).map(ThuChiDTO::fromEntity);
     }
 
     @Transactional
@@ -138,6 +168,30 @@ public class ThuChiService {
         thuChiRepository.delete(entity);
         nhatKyService.log("XOA", "thu_chi", "TC-" + id,
                 "Xóa giao dịch thu chi TC-" + id + ". Mô tả: " + entity.getMoTa());
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> getTransactionStats(LocalDateTime fromDate, LocalDateTime toDate) {
+        Specification<ThuChi> spec = ThuChiSpecification.filterTransactions(null, null, null, fromDate, toDate);
+        List<ThuChi> list = thuChiRepository.findAll(spec);
+        
+        java.math.BigDecimal totalIncome = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal totalExpenses = java.math.BigDecimal.ZERO;
+        for (ThuChi tc : list) {
+            if (tc.getTienThu() != null) {
+                totalIncome = totalIncome.add(tc.getTienThu());
+            }
+            if (tc.getTienChi() != null) {
+                totalExpenses = totalExpenses.add(tc.getTienChi());
+            }
+        }
+        
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("totalIncome", totalIncome);
+        stats.put("totalExpenses", totalExpenses);
+        stats.put("netProfit", totalIncome.subtract(totalExpenses));
+        stats.put("transactionCount", list.size());
+        return stats;
     }
 }
 

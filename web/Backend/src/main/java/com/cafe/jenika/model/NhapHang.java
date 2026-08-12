@@ -49,6 +49,9 @@ public class NhapHang {
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
     private String ghiChu;
 
+    @Column(name = "anh_hoa_don_url", length = 500)
+    private String anhHoaDonUrl;
+
     @OneToMany(mappedBy = "nhapHang", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ChiTietNhapHang> chiTietNhapHangs;
 }

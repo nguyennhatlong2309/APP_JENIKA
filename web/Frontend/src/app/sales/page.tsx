@@ -3,13 +3,24 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import OcrScanner from '@/components/features/OcrScanner';
+import OcrSalesScanner from '@/components/features/OcrSalesScanner';
+import Pagination from '@/components/ui/Pagination';
+import NumericInput from '@/components/ui/NumericInput';
 import { ProductItem, CategoryItem, UnitItem, GroupItem, PartnerItem, EmployeeItem, SalesOrderDetail, SaleOrder as OrderItem, ProductSaleItem, Tab1Stats, Tab2Stats } from '@/types';
 import { productService } from '@/services/productService';
 import { partnerService } from '@/services/partnerService';
 import { saleService } from '@/services/saleService';
 import { reportService } from '@/services/reportService';
 import { formatVND } from '@/lib/utils';
+import { uploadService } from '@/services/uploadService';
+
+const removeDiacritics = (str: string) => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+};
 
 interface SearchableProductSelectProps {
   products: ProductItem[];
@@ -56,8 +67,11 @@ function SearchableProductSelect({
   }, [selectedProduct]);
 
   const filteredProducts = products.filter(p => {
-    const q = query.toLowerCase();
-    return p.tenSanPham.toLowerCase().includes(q);
+    if (selectedProduct && query === selectedProduct.tenSanPham) {
+      return true;
+    }
+    const q = removeDiacritics(query.toLowerCase());
+    return removeDiacritics(p.tenSanPham.toLowerCase()).includes(q);
   });
 
   return (
@@ -70,7 +84,10 @@ function SearchableProductSelect({
             setQuery(e.target.value);
             setIsOpen(true);
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={(e) => {
+            setIsOpen(true);
+            e.target.select();
+          }}
           className="w-full bg-[#111625] border border-border-glass rounded-lg pl-3 pr-8 py-2 text-xs outline-none text-white cursor-pointer focus:border-primary transition-all"
           placeholder={placeholder}
         />
@@ -79,12 +96,12 @@ function SearchableProductSelect({
           onClick={() => setIsOpen(!isOpen)}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-white cursor-pointer"
         >
-          <span className="material-symbols-outlined text-sm">arrow_drop_down</span>
+          <span className="material-symbols-outlined text-sm">{isOpen ? 'arrow_drop_up' : 'arrow_drop_down'}</span>
         </button>
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[#141b2e] border border-border-glass rounded-xl z-50 shadow-2xl p-1">
+        <div className="absolute left-0 right-0 bottom-full mb-1 max-h-80 overflow-y-auto bg-[#141b2e] border border-border-glass rounded-xl z-50 shadow-2xl p-1">
           {filteredProducts.length === 0 ? (
             <div className="px-3 py-2 text-xs text-on-surface-variant italic">
               Không tìm thấy sản phẩm
@@ -172,21 +189,81 @@ function SalesContent() {
   const [selectedPrintOrder, setSelectedPrintOrder] = useState<OrderItem | null>(null);
   const [selectedViewOrder, setSelectedViewOrder] = useState<OrderItem | null>(null);
   const [editingOrder, setEditingOrder] = useState<OrderItem | null>(null);
+  const [initialOcrData, setInitialOcrData] = useState<any>(null);
+
+  useEffect(() => {
+    const pendingOcrId = searchParams.get('pendingOcrId');
+    if (pendingOcrId) {
+      // Clear parameter from URL to prevent infinite triggers
+      const params = new URLSearchParams(window.location.search);
+      params.delete('pendingOcrId');
+      const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      router.replace(newRelativePathQuery);
+
+      const fetchPendingOcr = async () => {
+        try {
+          const res = await fetch(`/api/ocr/pending?id=${pendingOcrId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.ocrData) {
+              setInitialOcrData(data.ocrData);
+              setIsPanelOpen(true);
+              setIsOcrOpen(true);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch pending OCR:', err);
+        }
+      };
+      fetchPendingOcr();
+    }
+  }, [searchParams, router]);
   const [availableProducts, setAvailableProducts] = useState<ProductItem[]>([]);
   const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [employees, setEmployees] = useState<EmployeeItem[]>([]);
 
   // Filter States - Tab 1
   const [searchInvoice, setSearchInvoice] = useState('');
+  const [debouncedSearchInvoice, setDebouncedSearchInvoice] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // All, Hoàn thành, Hẹn, Hủy
   const [fromDateInvoice, setFromDateInvoice] = useState('');
   const [toDateInvoice, setToDateInvoice] = useState('');
 
   // Filter States - Tab 2
   const [searchProduct, setSearchProduct] = useState('');
+  const [debouncedSearchProduct, setDebouncedSearchProduct] = useState('');
   const [classFilter, setClassFilter] = useState('All'); // All, Bán, Tặng
   const [fromDateProduct, setFromDateProduct] = useState('');
   const [toDateProduct, setToDateProduct] = useState('');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Debounce search query - Tab 1
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchInvoice(searchInvoice);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchInvoice]);
+
+  // Debounce search query - Tab 2
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchProduct(searchProduct);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchProduct]);
+
+  // Reset page when filters or tab change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, statusFilter, fromDateInvoice, toDateInvoice, classFilter, fromDateProduct, toDateProduct]);
 
   // Dynamic Statistics States
   const [tab1Stats, setTab1Stats] = useState<Tab1Stats>({
@@ -208,37 +285,14 @@ function SalesContent() {
   const [productSales, setProductSales] = useState<ProductSaleItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filtered lists calculated client-side to prevent lagging on search input keypresses
-  const filteredOrders = orders.filter(item => {
-    if (statusFilter !== 'All' && item.trangThai !== statusFilter) return false;
-    if (searchInvoice) {
-      const query = searchInvoice.toLowerCase();
-      const khach = item.doiTac ? item.doiTac.ten.toLowerCase() : 'khách vãng lai';
-      const code = `bh-${item.id}`;
-      if (!khach.includes(query) && !code.includes(query)) return false;
-    }
-    if (fromDateInvoice) {
-      const itemDate = new Date(item.thoiGian);
-      const from = new Date(fromDateInvoice);
-      if (itemDate < from) return false;
-    }
-    if (toDateInvoice) {
-      const itemDate = new Date(item.thoiGian);
-      const to = new Date(toDateInvoice);
-      to.setHours(23, 59, 59, 999);
-      if (itemDate > to) return false;
-    }
-    return true;
-  });
-
   const filteredProductSales = productSales.filter(item => {
     if (classFilter !== 'All') {
       const isGiftFilter = classFilter === 'Tặng';
       const isItemGift = item.phanLoai === 'Tặng';
       if (isGiftFilter !== isItemGift) return false;
     }
-    if (searchProduct) {
-      const query = searchProduct.toLowerCase();
+    if (debouncedSearchProduct) {
+      const query = debouncedSearchProduct.toLowerCase();
       const prodName = item.sanPham.toLowerCase();
       const partnerName = item.khachHang.toLowerCase();
       const code = item.maHD.toLowerCase();
@@ -247,16 +301,23 @@ function SalesContent() {
     return true;
   });
 
+  // Paginated lists
+  const totalPagesProductSales = Math.ceil(filteredProductSales.length / itemsPerPage);
+  const startIndexProductSales = (currentPage - 1) * itemsPerPage;
+  const paginatedProductSales = filteredProductSales.slice(startIndexProductSales, startIndexProductSales + itemsPerPage);
+
   // Form Creation State
   const [formOrderId, setFormOrderId] = useState<number | ''>('');
   const [formPartnerId, setFormPartnerId] = useState<string>('walk-in');
   const [formEmployeeId, setFormEmployeeId] = useState<string>('');
   const [formStatus, setFormStatus] = useState('Hoàn thành'); // Hoàn thành | Hẹn | Hủy
   const [formDeposit, setFormDeposit] = useState<number>(0);
+  const [isDepositManual, setIsDepositManual] = useState<boolean>(false);
   const [formGhiChu, setFormGhiChu] = useState('');
   const [formDiaChiGiaoHang, setFormDiaChiGiaoHang] = useState('');
   const [formThoiGian, setFormThoiGian] = useState('');
   const [formNgayLap, setFormNgayLap] = useState('');
+  const [formAnhHoaDonUrl, setFormAnhHoaDonUrl] = useState('');
 
   // Separated lists for purchased and gifted details
   const [purchasedDetails, setPurchasedDetails] = useState<SalesOrderDetail[]>([
@@ -280,6 +341,33 @@ function SalesContent() {
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
   const [isNewEmployeeModalOpen, setIsNewEmployeeModalOpen] = useState(false);
 
+  // Refs for tracking click outside
+  const customerContainerRef = useRef<HTMLDivElement>(null);
+  const employeeContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (customerContainerRef.current && !customerContainerRef.current.contains(event.target as Node)) {
+        setShowCustomerDropdown(false);
+        const selected = formPartnerId === 'walk-in' ? null : partners.find(p => p.id.toString() === formPartnerId);
+        if (selected) {
+          setCustomerQuery(selected.ten);
+        } else if (formPartnerId === 'walk-in') {
+          setCustomerQuery('Khách vãng lai (Khách lẻ)');
+        } else {
+          setCustomerQuery(newCustomerName || '');
+        }
+      }
+      if (employeeContainerRef.current && !employeeContainerRef.current.contains(event.target as Node)) {
+        setShowEmployeeDropdown(false);
+        const selected = employees.find(e => e.id.toString() === formEmployeeId);
+        setEmployeeQuery(selected ? selected.tenNhanVien : '');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [formPartnerId, partners, formEmployeeId, employees, newCustomerName]);
+
   // Alert/Error inside Modal
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -287,15 +375,14 @@ function SalesContent() {
   useEffect(() => {
     async function loadMetadata() {
       try {
-        const prodData = await productService.getActiveProducts();
+        const [prodData, partnerData, empData] = await Promise.all([
+          productService.getActiveProducts(),
+          partnerService.getPartners(),
+          partnerService.getEmployees()
+        ]);
         setAvailableProducts(prodData);
-
-        const partnerData = await partnerService.getPartners();
         setPartners(partnerData);
-
-        const empData = await partnerService.getEmployees();
         setEmployees(empData as any);
-        if (empData.length > 0) setFormEmployeeId(empData[0].id.toString());
       } catch (err) {
         console.error("Error fetching metadata:", err);
       }
@@ -309,15 +396,24 @@ function SalesContent() {
     try {
       if (activeTab === 0) {
         // Tab 1: Orders
-        // Fetch Orders List
-        const list = await saleService.getSaleOrders();
-        setOrders(list as any);
-
-        // Fetch Stats
-        const stats = await saleService.getSaleStats({
-          startDate: fromDateInvoice || undefined,
-          endDate: toDateInvoice || undefined
-        });
+        // Fetch Orders List Page
+        const [pageData, stats] = await Promise.all([
+          saleService.getSaleOrdersPage({
+            page: currentPage - 1,
+            size: itemsPerPage,
+            search: debouncedSearchInvoice,
+            status: statusFilter,
+            startDate: fromDateInvoice || undefined,
+            endDate: toDateInvoice || undefined
+          }),
+          saleService.getSaleStats({
+            startDate: fromDateInvoice || undefined,
+            endDate: toDateInvoice || undefined
+          })
+        ]);
+        setOrders(pageData.content);
+        setTotalItems(pageData.totalElements);
+        setTotalPages(pageData.totalPages);
         setTab1Stats(stats);
       } else {
         // Tab 2: Product Breakdown
@@ -343,7 +439,17 @@ function SalesContent() {
 
   useEffect(() => {
     loadData();
-  }, [activeTab, fromDateInvoice, toDateInvoice, fromDateProduct, toDateProduct]);
+  }, [
+    activeTab, 
+    currentPage, 
+    itemsPerPage, 
+    debouncedSearchInvoice, 
+    statusFilter, 
+    fromDateInvoice, 
+    toDateInvoice, 
+    fromDateProduct, 
+    toDateProduct
+  ]);
 
   // Open modal if search query contains create=true
   useEffect(() => {
@@ -374,15 +480,14 @@ function SalesContent() {
 
   const openCreatePanel = () => {
     setEditingOrder(null);
-    const nextId = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1;
-    setFormOrderId(nextId);
+    setFormOrderId('');
     setFormPartnerId('walk-in');
     setCustomerQuery('Khách vãng lai (Khách lẻ)');
-    setFormEmployeeId(employees.length > 0 ? employees[0].id.toString() : '');
-    const defaultEmp = employees.length > 0 ? employees[0] : null;
-    setEmployeeQuery(defaultEmp ? defaultEmp.tenNhanVien : '');
+    setFormEmployeeId('');
+    setEmployeeQuery('');
     setFormStatus('Hoàn thành');
     setFormDeposit(0);
+    setIsDepositManual(false);
     setFormGhiChu('');
     setFormDiaChiGiaoHang('');
     
@@ -391,8 +496,9 @@ function SalesContent() {
     const localISOTime = (new Date(now.getTime() - tzOffset)).toISOString().slice(0, 16);
     setFormThoiGian(localISOTime);
     setFormNgayLap('');
+    setFormAnhHoaDonUrl('');
     
-    setPurchasedDetails([{ sanPham: { id: 0 }, soLuong: 1, isGift: false }]);
+    setPurchasedDetails([{ sanPham: { id: 0 }, soLuong: 1, isGift: false, giaBan: 0 }]);
     setGiftDetails([]);
     
     setNewCustomerName('');
@@ -420,17 +526,20 @@ function SalesContent() {
     setEmployeeQuery(order.nhanVien ? order.nhanVien.tenNhanVien : '');
     setFormStatus(order.trangThai);
     setFormDeposit(order.tienDaThanhToan);
+    setIsDepositManual(true);
     setFormGhiChu(order.ghiChu || '');
     setFormDiaChiGiaoHang(order.diaChiGiaoHang || '');
     setFormThoiGian(order.thoiGian ? order.thoiGian.slice(0, 16) : '');
     setFormNgayLap(order.ngayLap || '');
+    setFormAnhHoaDonUrl(order.anhHoaDonUrl || '');
     
     const details = order.chiTietBanHangs || [];
     const pDetails = details.filter(d => !d.isGift).map(item => ({
       sanPham: { id: item.sanPham.id },
       soLuong: item.soLuong,
       isGift: false,
-      donVi: item.donVi
+      donVi: item.donVi,
+      giaBan: item.giaBan
     }));
     const gDetails = details.filter(d => d.isGift).map(item => ({
       sanPham: { id: item.sanPham.id },
@@ -459,7 +568,13 @@ function SalesContent() {
   const handlePurchasedDetailsChange = (index: number, key: keyof SalesOrderDetail, value: any) => {
     const next = [...purchasedDetails];
     if (key === 'sanPham') {
-      next[index] = { ...next[index], sanPham: { id: parseInt(value) || 0 } };
+      const spId = parseInt(value) || 0;
+      const sp = availableProducts.find(p => p.id === spId);
+      next[index] = {
+        ...next[index],
+        sanPham: { id: spId },
+        giaBan: sp ? sp.giaBanHienTai : 0
+      };
     } else {
       next[index] = { ...next[index], [key]: value } as any;
     }
@@ -498,11 +613,17 @@ function SalesContent() {
   const calculateTotal = () => {
     return purchasedDetails.reduce((sum, item) => {
       if (!item.sanPham.id) return sum;
-      const sp = availableProducts.find(p => p.id === item.sanPham.id);
-      if (!sp) return sum;
-      return sum + (sp.giaBanHienTai * item.soLuong);
+      const price = item.giaBan !== undefined ? item.giaBan : 0;
+      return sum + (price * item.soLuong);
     }, 0);
   };
+
+  const currentTotal = calculateTotal();
+  useEffect(() => {
+    if (!isDepositManual) {
+      setFormDeposit(currentTotal);
+    }
+  }, [currentTotal, isDepositManual]);
 
   const handleCreatePartnerQuick = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -608,6 +729,7 @@ function SalesContent() {
       trangThai: formStatus,
       tienDaThanhToan: formDeposit,
       ghiChu: formGhiChu,
+      anhHoaDonUrl: formAnhHoaDonUrl || null,
       diaChiGiaoHang: formDiaChiGiaoHang || null,
       thoiGian: formThoiGian ? new Date(formThoiGian).toISOString() : null,
       ngayLap: formNgayLap || null,
@@ -617,7 +739,8 @@ function SalesContent() {
           sanPham: { id: sp.id },
           soLuong: item.soLuong,
           isGift: item.isGift,
-          donVi: sp.donViTinh ? sp.donViTinh.tenDonVi : 'ly'
+          donVi: sp.donViTinh ? sp.donViTinh.tenDonVi : 'ly',
+          giaBan: item.isGift ? 0 : (item.giaBan ?? sp.giaBanHienTai)
         };
       })
     };
@@ -631,6 +754,7 @@ function SalesContent() {
 
       setFormPartnerId('walk-in');
       setFormDeposit(0);
+      setIsDepositManual(false);
       setFormGhiChu('');
       setPurchasedDetails([{ sanPham: { id: 0 }, soLuong: 1, isGift: false }]);
       setGiftDetails([]);
@@ -652,19 +776,39 @@ function SalesContent() {
     }
   };
 
+  const handleExportExcel = async (orderId: number) => {
+    try {
+      const blob = await saleService.exportSaleOrderExcel(orderId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `HD-${orderId}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Lỗi khi xuất Excel hóa đơn');
+    }
+  };
+
   // Export dynamically to CSV
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     let csvContent = '\uFEFF'; // UTF-8 BOM
     if (activeTab === 0) {
-      // Tab 1 export
-      csvContent += 'Mã HĐ,Ngày bán,Khách hàng,Nhân viên,Tổng tiền,Đã trả,Còn nợ,Trạng thái\n';
-      filteredOrders.forEach(o => {
-        const date = new Date(o.thoiGian).toLocaleString('vi-VN');
-        const khach = o.doiTac ? o.doiTac.ten : 'Khách vãng lai';
-        const nv = o.nhanVien ? o.nhanVien.tenNhanVien : '---';
-        csvContent += `BH-${o.id},"${date}","${khach}","${nv}",${o.tongTien},${o.tienDaThanhToan},${o.tienNo},"${o.trangThai}"\n`;
-      });
-      triggerDownload(csvContent, 'danh_sach_hoa_don_xuat.csv');
+      try {
+        const allOrders = await saleService.getSaleOrders();
+        csvContent += 'Mã HĐ,Ngày bán,Khách hàng,Nhân viên,Tổng tiền,Khách nợ,Tặng kèm,Lợi nhuận,Trạng thái\n';
+        allOrders.forEach(o => {
+          const date = new Date(o.thoiGian).toLocaleString('vi-VN');
+          const khach = o.doiTac ? o.doiTac.ten : 'Khách vãng lai';
+          const nv = o.nhanVien ? o.nhanVien.tenNhanVien : '---';
+          csvContent += `BH-${o.id},"${date}","${khach}","${nv}",${o.tongTien},${o.tienNo},${o.tienQuaTang ?? 0},${o.loiNhuan ?? 0},"${o.trangThai}"\n`;
+        });
+        triggerDownload(csvContent, 'danh_sach_hoa_don_xuat.csv');
+      } catch (err) {
+        console.error("Lỗi khi tải dữ liệu để xuất CSV:", err);
+      }
     } else {
       // Tab 2 export
       csvContent += 'Sản phẩm,Phân loại,Mã HĐ,Ngày bán,Giá nhập,Giá bán,Số lượng,Lợi nhuận lý thuyết,Khách hàng\n';
@@ -845,28 +989,29 @@ function SalesContent() {
                     >
                       <span className="material-symbols-outlined text-xs">download</span> Xuất CSV
                     </button>
-                    <span className="text-xs text-text-variant">Tìm thấy {filteredOrders.length} hóa đơn</span>
+                    <span className="text-xs text-text-variant">Tìm thấy {totalItems} hóa đơn</span>
                   </div>
                 </div>
 
                 {/* Table */}
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto" data-lenis-prevent="">
                   <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 z-10 bg-[#131929] shadow-[0_1px_0_0_rgba(255,255,255,0.08)]">
                       <tr className="text-text-variant text-[10px] font-bold uppercase tracking-wider border-b border-border-glass bg-[#131929]">
                         <th className="px-4 py-3">Mã HĐ</th>
                         <th className="px-4 py-3">Ngày tạo</th>
                         <th className="px-4 py-3">Khách hàng</th>
-                        <th className="px-4 py-3">Thu ngân</th>
+                        <th className="px-4 py-3">Nhân viên</th>
                         <th className="px-4 py-3">Tổng tiền</th>
-                        <th className="px-4 py-3">Đặt cọc</th>
-                        <th className="px-4 py-3">Còn nợ</th>
+                        <th className="px-4 py-3">Khách nợ</th>
+                        <th className="px-4 py-3">Tặng kèm</th>
+                        <th className="px-4 py-3">Lợi nhuận</th>
                         <th className="px-4 py-3">Trạng thái</th>
                         <th className="px-4 py-3 text-center">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-glass">
-                      {filteredOrders.map((o) => (
+                      {orders.map((o) => (
                         <tr key={o.id} className="hover:bg-white/[0.03] transition-colors group">
                           <td className="px-4 py-2.5 font-mono text-xs text-primary font-bold">BH-{o.id}</td>
                           <td className="px-4 py-2.5 text-xs text-text-variant">
@@ -879,8 +1024,11 @@ function SalesContent() {
                             {o.nhanVien ? o.nhanVien.tenNhanVien : '---'}
                           </td>
                           <td className="px-4 py-2.5 font-bold text-xs text-white">{formatVND(o.tongTien)}</td>
-                          <td className="px-4 py-2.5 text-xs text-success">{formatVND(o.tienDaThanhToan)}</td>
                           <td className="px-4 py-2.5 text-xs text-error font-bold">{formatVND(o.tienNo)}</td>
+                          <td className="px-4 py-2.5 text-xs text-warning">{o.tienQuaTang !== undefined ? formatVND(o.tienQuaTang) : '0 đ'}</td>
+                          <td className={`px-4 py-2.5 font-bold text-xs ${o.loiNhuan !== undefined && o.loiNhuan >= 0 ? 'text-success' : 'text-error'}`}>
+                            {o.loiNhuan !== undefined ? formatVND(o.loiNhuan) : '---'}
+                          </td>
                           <td className="px-4 py-2.5">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
@@ -911,6 +1059,15 @@ function SalesContent() {
                                 title="Xem chi tiết"
                               >
                                 <span className="material-symbols-outlined text-lg">visibility</span>
+                              </button>
+
+                              {/* Export Excel */}
+                              <button
+                                onClick={() => handleExportExcel(o.id)}
+                                className="p-1 hover:bg-primary/10 rounded text-on-surface-variant hover:text-success transition-colors cursor-pointer inline-flex items-center"
+                                title="Xuất Excel"
+                              >
+                                <span className="material-symbols-outlined text-lg text-success">download</span>
                               </button>
 
                               {/* Edit details */}
@@ -969,6 +1126,18 @@ function SalesContent() {
                     </tbody>
                   </table>
                 </div>
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={totalItems}
+                  itemsPerPage={itemsPerPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
               </section>
             </div>
           )}
@@ -1097,7 +1266,7 @@ function SalesContent() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-glass">
-                      {filteredProductSales.map((item, idx) => (
+                      {paginatedProductSales.map((item, idx) => (
                         <tr key={idx} className="hover:bg-white/[0.03] transition-colors group">
                           <td className="px-4 py-2.5 font-medium text-xs text-white">{item.sanPham}</td>
                           <td className="px-4 py-2.5">
@@ -1131,6 +1300,18 @@ function SalesContent() {
                     </tbody>
                   </table>
                 </div>
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPagesProductSales}
+                  onPageChange={setCurrentPage}
+                  totalItems={filteredProductSales.length}
+                  itemsPerPage={itemsPerPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
               </section>
             </div>
           )}
@@ -1179,10 +1360,13 @@ function SalesContent() {
 
             <div className="flex-1 flex overflow-hidden min-h-0">
               {isOcrOpen && !editingOrder && (
-                <OcrScanner
-                  mode="sales"
+                <OcrSalesScanner
                   availableProducts={availableProducts}
-                  onClose={() => setIsOcrOpen(false)}
+                  initialData={initialOcrData}
+                  onClose={() => {
+                    setIsOcrOpen(false);
+                    setInitialOcrData(null);
+                  }}
                   onApply={(ocrData) => {
                     if (ocrData.invoiceId) {
                       setFormGhiChu((prev) => {
@@ -1190,9 +1374,51 @@ function SalesContent() {
                         if (prev && prev.includes(prefix)) return prev;
                         return prev ? `${prev}\n${prefix}` : prefix;
                       });
+                      const cleanId = ocrData.invoiceId.replace(/[^\d]/g, '');
+                      if (cleanId) {
+                        setFormOrderId(parseInt(cleanId) || '');
+                      }
                     }
                     if (ocrData.date) {
                       setFormNgayLap(ocrData.date);
+                      setFormThoiGian(`${ocrData.date}T12:00`);
+                    }
+                    
+                    if (ocrData.anhHoaDonUrl) {
+                      setFormAnhHoaDonUrl(ocrData.anhHoaDonUrl);
+                    }
+
+                    if (ocrData.customerName || ocrData.customerPhone) {
+                      const matched = partners.find(p => {
+                        const cleanPPhone = p.sdt?.replace(/[^\d]/g, '') || '';
+                        const cleanOPhone = ocrData.customerPhone?.replace(/[^\d]/g, '') || '';
+                        if (cleanOPhone && cleanPPhone === cleanOPhone) return true;
+                        return ocrData.customerName && p.ten.toLowerCase().trim() === ocrData.customerName.toLowerCase().trim();
+                      });
+
+                      if (matched) {
+                        setFormPartnerId(matched.id.toString());
+                        setCustomerQuery(matched.ten);
+                        setFormDiaChiGiaoHang(ocrData.customerAddress || matched.diaChi || '');
+                      } else {
+                        setFormPartnerId('');
+                        if (ocrData.customerName) {
+                          setCustomerQuery(ocrData.customerName);
+                          setNewCustomerName(ocrData.customerName);
+                        }
+                        if (ocrData.customerPhone) {
+                          setNewCustomerPhone(ocrData.customerPhone);
+                        }
+                        if (ocrData.customerAddress) {
+                          setFormDiaChiGiaoHang(ocrData.customerAddress);
+                          setNewCustomerAddress(ocrData.customerAddress);
+                        }
+                      }
+                    }
+
+                    if (ocrData.paidAmount !== undefined) {
+                      setFormDeposit(ocrData.paidAmount);
+                      setIsDepositManual(true);
                     }
                     
                     // Map parsed items to SalesOrderDetail format
@@ -1204,7 +1430,8 @@ function SalesContent() {
                           sanPham: { id: item.productId },
                           soLuong: item.qty,
                           isGift: false,
-                          donVi: item.dvt || prod?.donViTinh?.tenDonVi || 'ly'
+                          donVi: item.dvt || prod?.donViTinh?.tenDonVi || 'ly',
+                          giaBan: item.price
                         };
                       });
                     
@@ -1216,7 +1443,8 @@ function SalesContent() {
                           sanPham: { id: item.productId },
                           soLuong: item.qty,
                           isGift: true,
-                          donVi: item.dvt || prod?.donViTinh?.tenDonVi || 'ly'
+                          donVi: item.dvt || prod?.donViTinh?.tenDonVi || 'ly',
+                          giaBan: 0
                         };
                       });
                     
@@ -1257,7 +1485,7 @@ function SalesContent() {
                 </div>
 
                 {/* Field 3: Nhân viên phụ trách */}
-                <div className="relative">
+                <div className="relative" ref={employeeContainerRef}>
                   <label className="block text-[10px] uppercase tracking-wider text-text-variant mb-2 font-bold">Nhân viên phụ trách</label>
                   <div className="relative">
                     <input
@@ -1267,7 +1495,10 @@ function SalesContent() {
                         setEmployeeQuery(e.target.value);
                         setShowEmployeeDropdown(true);
                       }}
-                      onFocus={() => setShowEmployeeDropdown(true)}
+                      onFocus={(e) => {
+                        setShowEmployeeDropdown(true);
+                        e.target.select();
+                      }}
                       className="w-full bg-surface-low border border-border-glass rounded-xl px-4 py-2.5 text-xs outline-none text-white focus:border-primary transition-all"
                       placeholder="Tìm nhân viên..."
                     />
@@ -1291,7 +1522,14 @@ function SalesContent() {
                         <span className="material-symbols-outlined text-sm">person_add</span> Thêm nhân viên mới...
                       </div>
                       {employees
-                        .filter(emp => emp.tenNhanVien.toLowerCase().includes(employeeQuery.toLowerCase()))
+                        .filter(emp => {
+                          const currentSelected = employees.find(e => e.id.toString() === formEmployeeId)?.tenNhanVien || '';
+                          if (employeeQuery === currentSelected) {
+                            return true;
+                          }
+                          const q = removeDiacritics(employeeQuery.toLowerCase());
+                          return removeDiacritics(emp.tenNhanVien.toLowerCase()).includes(q);
+                        })
                         .map(emp => (
                           <div
                             key={emp.id}
@@ -1313,7 +1551,7 @@ function SalesContent() {
               {/* Row 2: khách hàng , SDT KH, địa chỉ */}
               <div className="grid grid-cols-3 gap-4">
                 {/* Field 4: Chọn Khách hàng (Searchable dropdown) */}
-                <div className="relative">
+                <div className="relative" ref={customerContainerRef}>
                   <label className="block text-[10px] uppercase tracking-wider text-text-variant mb-2 font-bold">Khách hàng</label>
                   <div className="relative">
                     <input
@@ -1323,7 +1561,10 @@ function SalesContent() {
                         setCustomerQuery(e.target.value);
                         setShowCustomerDropdown(true);
                       }}
-                      onFocus={() => setShowCustomerDropdown(true)}
+                      onFocus={(e) => {
+                        setShowCustomerDropdown(true);
+                        e.target.select();
+                      }}
                       className="w-full bg-surface-low border border-border-glass rounded-xl px-4 py-2.5 text-xs outline-none text-white focus:border-primary transition-all"
                       placeholder="Tìm khách hàng hoặc nhập mới..."
                     />
@@ -1339,6 +1580,9 @@ function SalesContent() {
                     <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[#141b2e] border border-border-glass rounded-xl z-50 shadow-2xl p-1">
                       <div
                         onClick={() => {
+                          if (!newCustomerName && customerQuery && customerQuery !== 'Khách vãng lai (Khách lẻ)') {
+                            setNewCustomerName(customerQuery);
+                          }
                           setIsNewPartnerModalOpen(true);
                           setShowCustomerDropdown(false);
                         }}
@@ -1357,9 +1601,17 @@ function SalesContent() {
                       >
                         Khách vãng lai (Khách lẻ)
                       </div>
-                      {partners
-                        .filter(p => p.ten.toLowerCase().includes(customerQuery.toLowerCase()) || (p.sdt && p.sdt.includes(customerQuery)))
-                        .map(p => (
+                      {(() => {
+                        const filtered = partners.filter(p => {
+                          const currentSelected = formPartnerId === 'walk-in' ? 'Khách vãng lai (Khách lẻ)' : (partners.find(x => x.id.toString() === formPartnerId)?.ten || '');
+                          if (customerQuery === currentSelected) {
+                            return true;
+                          }
+                          const q = removeDiacritics(customerQuery.toLowerCase());
+                          return removeDiacritics(p.ten.toLowerCase()).includes(q) || (p.sdt && p.sdt.includes(customerQuery));
+                        });
+
+                        const renderItem = (p: typeof partners[0]) => (
                           <div
                             key={p.id}
                             onClick={() => {
@@ -1373,7 +1625,39 @@ function SalesContent() {
                             <span>{p.ten}</span>
                             <span className="text-[10px] text-text-variant font-mono">{p.sdt || ''}</span>
                           </div>
-                        ))}
+                        );
+
+                        if (filtered.length > 0) {
+                          return filtered.map(renderItem);
+                        } else {
+                          return (
+                            <>
+                              <div className="px-3 py-1.5 text-[9px] text-warning bg-warning/5 border-y border-white/5 font-semibold">
+                                Không tìm thấy đối tác khớp. Danh sách hiện có:
+                              </div>
+                              {partners.map(renderItem)}
+                            </>
+                          );
+                        }
+                      })()}
+                    </div>
+                  )}
+                  {formPartnerId === '' && customerQuery.trim() !== '' && customerQuery !== 'Khách vãng lai (Khách lẻ)' && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-warning font-semibold">
+                      <span className="material-symbols-outlined text-[13px]">info</span>
+                      <span>Khách hàng chưa có trong danh sách đối tác.</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newCustomerName) {
+                            setNewCustomerName(customerQuery);
+                          }
+                          setIsNewPartnerModalOpen(true);
+                        }}
+                        className="underline text-primary hover:text-primary-hover active:scale-95 transition-all cursor-pointer font-bold ml-1"
+                      >
+                        [Thêm mới]
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1436,10 +1720,12 @@ function SalesContent() {
                 {/* Field 9: Tiền đã thanh toán */}
                 <div>
                   <label className="block text-[10px] uppercase tracking-wider text-text-variant mb-2 font-bold">Tiền đã trả (đ)</label>
-                  <input
-                    type="text"
-                    value={formatNumberWithDots(formDeposit)}
-                    onChange={(e) => setFormDeposit(parseNumberFromDots(e.target.value))}
+                  <NumericInput
+                    value={formDeposit}
+                    onChange={(val) => {
+                      setFormDeposit(val);
+                      setIsDepositManual(true);
+                    }}
                     className="w-full bg-surface-low border border-border-glass rounded-xl px-4 py-2.5 text-xs focus:border-primary outline-none text-white font-mono"
                     placeholder="Số tiền đã trả..."
                   />
@@ -1448,7 +1734,7 @@ function SalesContent() {
 
               {/* Field 10: Ghi chú */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-text-variant mb-2 font-bold">10. Ghi chú hóa đơn</label>
+                <label className="block text-[10px] uppercase tracking-wider text-text-variant mb-2 font-bold">Ghi chú hóa đơn</label>
                 <textarea
                   value={formGhiChu}
                   onChange={(e) => setFormGhiChu(e.target.value)}
@@ -1457,10 +1743,63 @@ function SalesContent() {
                 />
               </div>
 
+              {/* Field 10.5: Đính kèm ảnh hóa đơn */}
+              <div className="bg-white/[0.01] border border-white/5 rounded-xl p-4 space-y-3">
+                <label className="block text-[10px] uppercase tracking-wider text-text-variant font-bold">
+                  Ảnh hóa đơn (Đính kèm)
+                </label>
+                {formAnhHoaDonUrl ? (
+                  <div className="relative group w-32 h-32 rounded-lg overflow-hidden border border-white/10 bg-black/40">
+                    <img 
+                      src={formAnhHoaDonUrl} 
+                      alt="Invoice upload" 
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormAnhHoaDonUrl('')}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white hover:text-error cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            const res = await uploadService.uploadImage(file);
+                            if (res.success && res.url) {
+                              setFormAnhHoaDonUrl(res.url);
+                            }
+                          } catch (err) {
+                            alert('Không thể tải ảnh hóa đơn lên: ' + err);
+                          }
+                        }
+                      }}
+                      className="hidden"
+                      id="manual-invoice-upload-sales"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('manual-invoice-upload-sales')?.click()}
+                      className="px-4 py-2 border border-dashed border-white/10 hover:border-primary/40 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-semibold text-white transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">cloud_upload</span>
+                      Chọn ảnh hóa đơn
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Field 11: Danh sách sản phẩm mua */}
               <div className="space-y-3 pt-2">
                 <div className="flex justify-between items-center">
-                  <label className="block text-xs uppercase tracking-wider text-text-variant font-bold">11. Danh sách sản phẩm mua</label>
+                  <label className="block text-xs uppercase tracking-wider text-text-variant font-bold">Danh sách sản phẩm mua</label>
                   <button
                     type="button"
                     onClick={addPurchasedRow}
@@ -1470,11 +1809,21 @@ function SalesContent() {
                   </button>
                 </div>
 
-                <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                {/* Header row for purchase items */}
+                <div className="flex items-center gap-3 px-3 text-[10px] uppercase tracking-wider text-text-variant font-bold">
+                  <div className="flex-1">Sản phẩm</div>
+                  <div className="w-16 text-center">SL</div>
+                  <div className="w-10 text-center">ĐVT</div>
+                  <div className="w-32 text-right">Giá bán</div>
+                  <div className="w-32 text-right">Thành tiền</div>
+                  <div className="w-8"></div>
+                </div>
+
+                <div className="space-y-3 pr-1">
                   {purchasedDetails.map((row, idx) => {
                     const selectedSp = availableProducts.find(p => p.id === row.sanPham.id);
                     return (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-white/5 border border-border-glass rounded-xl relative group">
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-white/5 border border-border-glass rounded-xl relative group focus-within:z-20">
                         <div className="flex-1">
                           <SearchableProductSelect
                             products={availableProducts}
@@ -1500,8 +1849,18 @@ function SalesContent() {
                           {selectedSp?.donViTinh?.tenDonVi || 'ly'}
                         </div>
 
-                        <div className="w-24 text-right text-xs font-semibold text-white font-mono">
-                          {formatVND(selectedSp ? selectedSp.giaBanHienTai * row.soLuong : 0)}
+                        <div className="w-32">
+                          <NumericInput
+                            required
+                            value={row.giaBan ?? 0}
+                            onChange={(value) => handlePurchasedDetailsChange(idx, 'giaBan', value)}
+                            className="w-full bg-[#111625] border border-border-glass rounded-lg px-2 py-2 text-xs outline-none text-white text-right font-mono"
+                            placeholder="Giá bán"
+                          />
+                        </div>
+
+                        <div className="w-32 text-right text-xs font-semibold text-white font-mono pr-2">
+                          {formatVND((row.giaBan ?? 0) * row.soLuong)}
                         </div>
 
                         <button
@@ -1520,7 +1879,7 @@ function SalesContent() {
               {/* Field 12: Danh sách sản phẩm tặng kèm */}
               <div className="space-y-3 pt-2 border-t border-white/5">
                 <div className="flex justify-between items-center">
-                  <label className="block text-xs uppercase tracking-wider text-warning font-bold">12. Danh sách sản phẩm tặng kèm</label>
+                  <label className="block text-xs uppercase tracking-wider text-warning font-bold">Danh sách sản phẩm tặng kèm</label>
                   <button
                     type="button"
                     onClick={addGiftRow}
@@ -1530,11 +1889,11 @@ function SalesContent() {
                   </button>
                 </div>
 
-                <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-3 pr-1">
                   {giftDetails.map((row, idx) => {
                     const selectedSp = availableProducts.find(p => p.id === row.sanPham.id);
                     return (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-warning/5 border border-warning/10 rounded-xl relative group">
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-warning/5 border border-warning/10 rounded-xl relative group focus-within:z-20">
                         <div className="flex-1">
                           <SearchableProductSelect
                             products={availableProducts}
@@ -1561,7 +1920,7 @@ function SalesContent() {
                           {selectedSp?.donViTinh?.tenDonVi || 'ly'}
                         </div>
 
-                        <div className="w-24 text-right text-xs font-bold text-warning uppercase">
+                        <div className="w-64 text-right text-xs font-bold text-warning uppercase pr-2">
                           Quà tặng (0đ)
                         </div>
 
@@ -1629,10 +1988,10 @@ function SalesContent() {
       {isViewOpen && selectedViewOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsViewOpen(false)}></div>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsViewOpen(false)}></div>
 
           {/* Modal content */}
-          <div className="relative w-full max-w-lg bg-[#0A0E17]/95 border border-white/10 backdrop-blur-[12px] p-6 rounded-2xl shadow-2xl flex flex-col z-50">
+          <div className="relative w-full max-w-2xl bg-[#0A0E17]/70 border border-white/10 backdrop-blur-md p-6 rounded-2xl shadow-2xl flex flex-col z-50">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-white">Chi tiết hóa đơn BH-{selectedViewOrder.id}</h3>
               <button
@@ -1650,7 +2009,7 @@ function SalesContent() {
                   <p className="mt-1">Khách hàng: <span className="text-white font-medium">{selectedViewOrder.doiTac ? selectedViewOrder.doiTac.ten : 'Khách vãng lai'}</span></p>
                 </div>
                 <div>
-                  <p>Thu ngân: <span className="text-white font-medium">{selectedViewOrder.nhanVien ? selectedViewOrder.nhanVien.tenNhanVien : '---'}</span></p>
+                  <p>Nhân viên: <span className="text-white font-medium">{selectedViewOrder.nhanVien ? selectedViewOrder.nhanVien.tenNhanVien : '---'}</span></p>
                   <p className="mt-1">Trạng thái: <span className="text-primary font-bold">{selectedViewOrder.trangThai}</span></p>
                 </div>
               </div>
@@ -1658,7 +2017,7 @@ function SalesContent() {
               {/* Items List */}
               <div>
                 <p className="font-semibold text-white uppercase text-[10px] tracking-wider mb-2">Danh sách sản phẩm / món nước</p>
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                   {selectedViewOrder.chiTietBanHangs?.map((ct, idx) => (
                     <div key={idx} className="flex justify-between items-center p-2.5 bg-white/5 rounded-lg border border-border-glass">
                       <div>
@@ -1683,11 +2042,47 @@ function SalesContent() {
                 </div>
               )}
 
+              {/* Ảnh hóa đơn */}
+              {selectedViewOrder.anhHoaDonUrl && (
+                <div className="p-3 bg-white/5 border border-border-glass rounded-xl space-y-2">
+                  <p className="font-semibold text-white uppercase text-[10px] tracking-wider mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs">image</span>
+                    Ảnh hóa đơn đính kèm
+                  </p>
+                  <a 
+                    href={selectedViewOrder.anhHoaDonUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="block relative group max-w-[200px] h-32 rounded-lg overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in"
+                  >
+                    <img 
+                      src={selectedViewOrder.anhHoaDonUrl} 
+                      alt="Invoice" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold">
+                      Xem ảnh gốc
+                    </div>
+                  </a>
+                </div>
+              )}
+
               {/* Calculations */}
-              <div className="pt-4 border-t border-border-glass space-y-1.5 text-right font-medium">
-                <p className="text-text-variant">Tổng tiền: <span className="text-sm font-bold text-white ml-2">{formatVND(selectedViewOrder.tongTien)}</span></p>
-                <p className="text-text-variant">Đã thanh toán: <span className="text-xs font-bold text-success ml-2">{formatVND(selectedViewOrder.tienDaThanhToan)}</span></p>
-                <p className="text-text-variant">Khách còn nợ: <span className="text-xs font-bold text-error ml-2">{formatVND(selectedViewOrder.tienNo)}</span></p>
+              <div className="pt-4 border-t border-border-glass flex justify-between items-end">
+                <button
+                  onClick={() => handleExportExcel(selectedViewOrder.id)}
+                  className="px-4 py-2 bg-success/20 text-success border border-success/30 hover:bg-success/30 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm">download</span>
+                  Xuất Excel
+                </button>
+                <div className="space-y-1.5 text-right font-medium">
+                  <p className="text-text-variant">Tổng tiền: <span className="text-sm font-bold text-white ml-2">{formatVND(selectedViewOrder.tongTien)}</span></p>
+                  <p className="text-text-variant">Tặng kèm: <span className="text-xs font-bold text-warning ml-2">{selectedViewOrder.tienQuaTang !== undefined ? formatVND(selectedViewOrder.tienQuaTang) : '0 đ'}</span></p>
+                  <p className="text-text-variant">Lợi nhuận: <span className={`text-xs font-bold ml-2 ${selectedViewOrder.loiNhuan !== undefined && selectedViewOrder.loiNhuan >= 0 ? 'text-success' : 'text-error'}`}>{selectedViewOrder.loiNhuan !== undefined ? formatVND(selectedViewOrder.loiNhuan) : '---'}</span></p>
+                  <p className="text-text-variant">Đã thanh toán: <span className="text-xs font-bold text-success ml-2">{formatVND(selectedViewOrder.tienDaThanhToan)}</span></p>
+                  <p className="text-text-variant">Khách còn nợ: <span className="text-xs font-bold text-error ml-2">{formatVND(selectedViewOrder.tienNo)}</span></p>
+                </div>
               </div>
             </div>
           </div>
@@ -1714,7 +2109,7 @@ function SalesContent() {
 
             {/* ASCII thermal receipt simulation */}
             <div className="bg-slate-100 p-4 border border-slate-300 font-mono text-[11px] rounded-lg overflow-y-auto flex-1 leading-relaxed selection:bg-slate-300">
-              <div className="text-center font-bold text-xs uppercase mb-1">☕ CAFE DI ROM ☕</div>
+              <div className="text-center font-bold text-xs uppercase mb-1">☕ JenkaM ☕</div>
               <div className="text-center mb-2">Hương vị cà phê truyền thống</div>
               <div className="border-t border-dashed border-black/30 my-2"></div>
               

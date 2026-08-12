@@ -23,6 +23,7 @@ public class NhapHangDTO {
     private DoiTacDTO doiTac;
     private NhanVienDTO nhanVien;
     private String ghiChu;
+    private String anhHoaDonUrl;
     private List<ChiTietNhapHangDTO> chiTietNhapHangs;
 
     public static NhapHangDTO fromEntity(NhapHang entity) {
@@ -38,6 +39,7 @@ public class NhapHangDTO {
                 .doiTac(DoiTacDTO.fromEntity(entity.getDoiTac()))
                 .nhanVien(NhanVienDTO.fromEntity(entity.getNhanVien()))
                 .ghiChu(entity.getGhiChu())
+                .anhHoaDonUrl(entity.getAnhHoaDonUrl())
                 .chiTietNhapHangs(entity.getChiTietNhapHangs() != null ?
                         entity.getChiTietNhapHangs().stream()
                                 .map(ChiTietNhapHangDTO::fromEntity)
@@ -57,6 +59,7 @@ public class NhapHangDTO {
                 .doiTac(this.doiTac != null ? this.doiTac.toEntity() : null)
                 .nhanVien(this.nhanVien != null ? this.nhanVien.toEntity() : null)
                 .ghiChu(this.ghiChu)
+                .anhHoaDonUrl(this.anhHoaDonUrl)
                 .build();
         
         if (this.chiTietNhapHangs != null) {

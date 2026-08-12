@@ -1,7 +1,8 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Pagination from '@/components/ui/Pagination';
 
 import { ExpenseItem, ExpenseCategoryItem, EmployeeItem, ThuChiDbItem } from '@/types';
 import { expenseService } from '@/services/expenseService';
@@ -13,10 +14,52 @@ function ExpensesContent() {
   const router = useRouter();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('Tất cả');
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<'' | 'THU' | 'CHI'>('');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [stats, setStats] = useState({
+    totalIncome: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    transactionCount: 0
+  });
+
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategories, transactionTypeFilter, fromDate, toDate]);
+
+  // Close category dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [viewingExpense, setViewingExpense] = useState<ExpenseItem | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
@@ -41,7 +84,7 @@ function ExpensesContent() {
   const mapDbItemToExpense = (item: ThuChiDbItem): ExpenseItem => {
     const tienThu = item.tienThu || 0;
     const tienChi = item.tienChi || 0;
-    
+
     let methodIcon = 'payments';
     const method = item.phuongThuc || 'Tiền mặt';
     if (method.includes('tín dụng') || method.includes('Thẻ')) methodIcon = 'credit_card';
@@ -90,8 +133,34 @@ function ExpensesContent() {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const data = await expenseService.getExpenses();
-      setExpenses(data.map(mapDbItemToExpense));
+      // Use the first selected category for backend filter (backend supports single categoryId)
+      const categoryId = selectedCategories.length === 1 ? selectedCategories[0] : undefined;
+
+      const [pageData, statsData] = await Promise.all([
+        expenseService.getExpensesPage({
+          page: currentPage - 1,
+          size: itemsPerPage,
+          search: debouncedSearchQuery,
+          categoryId,
+          startDate: fromDate || undefined,
+          endDate: toDate || undefined,
+          transactionType: transactionTypeFilter || undefined
+        }),
+        expenseService.getExpenseStats({
+          startDate: fromDate || undefined,
+          endDate: toDate || undefined
+        })
+      ]);
+
+      let mapped = pageData.content.map(mapDbItemToExpense);
+      // Client-side multi-category filter when more than one category is selected
+      if (selectedCategories.length > 1) {
+        mapped = mapped.filter(exp => exp.idLoai && selectedCategories.includes(exp.idLoai));
+      }
+      setExpenses(mapped);
+      setTotalItems(pageData.totalElements);
+      setTotalPages(pageData.totalPages);
+      setStats(statsData);
     } catch (error) {
       console.error("Lỗi khi tải nhật ký thu chi:", error);
     } finally {
@@ -118,10 +187,16 @@ function ExpensesContent() {
   };
 
   useEffect(() => {
-    fetchExpenses();
     fetchCategories();
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    // Only fetch expenses once categories have loaded
+    if (categories.length > 0 || selectedCategories.length === 0) {
+      fetchExpenses();
+    }
+  }, [currentPage, itemsPerPage, selectedCategories, transactionTypeFilter, debouncedSearchQuery, fromDate, toDate, categories]);
 
   // Open modal if query is log=true
   useEffect(() => {
@@ -162,7 +237,7 @@ function ExpensesContent() {
   const openEditModal = (expense: ExpenseItem) => {
     setEditingExpense(expense);
     setTransactionType(expense.tienThu > 0 ? 'THU' : 'CHI');
-    
+
     // Check if moTa has a notes suffix in parentheses
     let parsedTitle = expense.name;
     let parsedNotes = '';
@@ -232,38 +307,28 @@ function ExpensesContent() {
     }
   };
 
-  // Filter
-  const filteredExpenses = expenses.filter((expense) => {
-    const matchesTab = activeTab === 'Tất cả' || expense.category === activeTab;
-    const matchesSearch =
-      expense.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (expense.tenNhanVien && expense.tenNhanVien.toLowerCase().includes(searchQuery.toLowerCase()));
-    if (!matchesTab || !matchesSearch) return false;
-    if (fromDate && expense.rawDate < fromDate) return false;
-    if (toDate && expense.rawDate > toDate) return false;
-    return true;
-  });
+  // Calculations from stats state
+  const totalIncome = stats.totalIncome;
+  const totalExpenses = stats.totalExpenses;
+  const netProfit = stats.netProfit;
+  const transactionCount = stats.transactionCount;
 
-  const dateFilteredExpenses = expenses.filter((expense) => {
-    if (fromDate && expense.rawDate < fromDate) return false;
-    if (toDate && expense.rawDate > toDate) return false;
-    return true;
-  });
-
-  // Calculations
-  const totalIncome = dateFilteredExpenses.reduce((sum, e) => sum + e.tienThu, 0);
-  const totalExpenses = dateFilteredExpenses.reduce((sum, e) => sum + e.tienChi, 0);
-  const netProfit = totalIncome - totalExpenses;
-  const transactionCount = dateFilteredExpenses.length;
-
-  if (loading) {
+  if (loading && expenses.length === 0) {
     return <div className="p-8 text-center text-white text-sm">Đang tải dữ liệu thu chi thực tế từ máy chủ...</div>;
   }
 
-  // Generate dynamic category tabs
-  const tabOptions = ['Tất cả', ...Array.from(new Set(expenses.map(e => e.category)))];
+  // Toggle category checkbox selection
+  const toggleCategory = (id: number) => {
+    setSelectedCategories(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    );
+  };
+
+  const categoryLabel = selectedCategories.length === 0
+    ? 'Tất cả danh mục'
+    : selectedCategories.length === 1
+      ? categories.find(c => c.id === selectedCategories[0])?.ten || 'Danh mục'
+      : `${selectedCategories.length} danh mục`;
 
   return (
     <div className="h-[calc(100vh-16px)] overflow-hidden flex flex-col pt-2 pb-2 px-4 space-y-3 w-full relative">
@@ -271,7 +336,6 @@ function ExpensesContent() {
       <div className="flex justify-between items-center flex-shrink-0">
         <div>
           <h2 className="text-xl font-bold text-white tracking-wide">Nhật ký Thu Chi</h2>
-          <p className="text-[10px] text-on-surface-variant mt-0.5">Theo dõi lịch sử thu chi thực tế, doanh thu và dòng tiền của cửa hàng.</p>
         </div>
         <button
           onClick={openCreateModal}
@@ -332,20 +396,87 @@ function ExpensesContent() {
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-white font-semibold text-xs">Nhật ký Thu Chi</span>
             <div className="h-4 w-[1px] bg-border-glass"></div>
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              {tabOptions.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-                    activeTab === tab
-                      ? 'bg-primary text-on-primary font-bold'
-                      : 'bg-white/5 border border-border-glass text-on-surface-variant hover:text-white'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+
+            {/* Category dropdown checkbox menu */}
+            <div className="relative" ref={categoryDropdownRef}>
+              <button
+                onClick={() => setIsCategoryDropdownOpen(prev => !prev)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
+                  selectedCategories.length > 0
+                    ? 'bg-primary/15 border-primary/40 text-primary'
+                    : 'bg-white/5 border-border-glass text-on-surface-variant hover:text-white hover:border-white/20'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">category</span>
+                {categoryLabel}
+                <span className="material-symbols-outlined text-sm transition-transform" style={{ transform: isCategoryDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>
+              </button>
+
+              {isCategoryDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1.5 w-56 bg-white border border-neutral-200/90 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="p-2 border-b border-neutral-100">
+                    <button
+                      onClick={() => setSelectedCategories([])}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-2.5 ${
+                        selectedCategories.length === 0
+                          ? 'bg-primary/20 text-slate-900 font-bold'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded border flex-shrink-0 transition-all ${
+                        selectedCategories.length === 0
+                          ? 'bg-primary border-primary'
+                          : 'border-slate-300'
+                      }`} />
+                      Tất cả danh mục
+                    </button>
+                  </div>
+                  <div className="p-2 max-h-52 overflow-y-auto" data-lenis-prevent="">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => toggleCategory(cat.id)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-2.5 ${
+                          selectedCategories.includes(cat.id)
+                            ? 'bg-primary/20 text-slate-900 font-bold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className={`w-4 h-4 rounded border flex-shrink-0 transition-all ${
+                          selectedCategories.includes(cat.id)
+                            ? 'bg-primary border-primary'
+                            : 'border-slate-300'
+                        }`} />
+                        {cat.ten}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Thu / Chi filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-on-surface-variant text-[10px] uppercase font-bold">Giao dịch:</span>
+              <div className="flex bg-surface-lowest border border-border-glass rounded-lg p-0.5">
+                {([
+                  { value: '', label: 'Tất cả' },
+                  { value: 'THU', label: 'Thu' },
+                  { value: 'CHI', label: 'Chi' }
+                ] as const).map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => setTransactionTypeFilter(item.value)}
+                    className={`px-2.5 py-0.5 rounded text-[10px] transition-all cursor-pointer ${
+                      transactionTypeFilter === item.value
+                        ? 'bg-primary text-on-primary font-bold shadow-[0_0_10px_rgba(73,252,223,0.3)]'
+                        : 'text-on-surface-variant hover:text-primary'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -379,12 +510,12 @@ function ExpensesContent() {
               />
             </div>
 
-            <span className="text-xs text-text-variant">Tìm thấy {filteredExpenses.length} giao dịch</span>
+            <span className="text-xs text-text-variant">Tìm thấy {totalItems} giao dịch</span>
           </div>
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto" data-lenis-prevent="">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 z-10 bg-[#131929] shadow-[0_1px_0_0_rgba(255,255,255,0.08)]">
               <tr className="text-on-surface-variant text-[10px] uppercase tracking-wider font-bold border-b border-border-glass bg-[#131929]">
@@ -399,11 +530,11 @@ function ExpensesContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-glass/50">
-              {filteredExpenses.map((expense) => {
+              {expenses.map((expense) => {
                 const profit = expense.tienThu - expense.tienChi;
                 return (
-                  <tr 
-                    key={expense.id} 
+                  <tr
+                    key={expense.id}
                     onDoubleClick={() => {
                       setViewingExpense(expense);
                       setIsViewModalOpen(true);
@@ -465,6 +596,18 @@ function ExpensesContent() {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={(size) => {
+            setItemsPerPage(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* Log/Edit Modal */}
@@ -499,11 +642,10 @@ function ExpensesContent() {
                       <button
                         type="button"
                         onClick={() => setTransactionType('CHI')}
-                        className={`py-3 rounded-lg text-sm font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer ${
-                          transactionType === 'CHI'
-                            ? 'bg-rose-500/20 border-rose-500 text-rose-400 shadow-md shadow-rose-950/20'
-                            : 'bg-surface-low border-border-glass text-on-surface-variant hover:border-white/20'
-                        }`}
+                        className={`py-3 rounded-lg text-sm font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer ${transactionType === 'CHI'
+                          ? 'bg-rose-500/20 border-rose-500 text-rose-400 shadow-md shadow-rose-950/20'
+                          : 'bg-surface-low border-border-glass text-on-surface-variant hover:border-white/20'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-base">remove_circle</span>
                         Khoản Chi
@@ -511,11 +653,10 @@ function ExpensesContent() {
                       <button
                         type="button"
                         onClick={() => setTransactionType('THU')}
-                        className={`py-3 rounded-lg text-sm font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer ${
-                          transactionType === 'THU'
-                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-md shadow-emerald-950/20'
-                            : 'bg-surface-low border-border-glass text-on-surface-variant hover:border-white/20'
-                        }`}
+                        className={`py-3 rounded-lg text-sm font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer ${transactionType === 'THU'
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-md shadow-emerald-950/20'
+                          : 'bg-surface-low border-border-glass text-on-surface-variant hover:border-white/20'
+                          }`}
                       >
                         <span className="material-symbols-outlined text-base">add_circle</span>
                         Khoản Thu
@@ -633,7 +774,7 @@ function ExpensesContent() {
                     ></textarea>
                   </div>
                 </div>
-                
+
                 {/* Submit buttons */}
                 <div className="flex items-center justify-end gap-4 pt-4 border-t border-border-glass">
                   <button
@@ -676,7 +817,7 @@ function ExpensesContent() {
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            
+
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
                 <div>

@@ -13,6 +13,8 @@ const imageBuffer = fs.readFileSync(imagePath);
 
 Tesseract.recognize(imageBuffer, 'vie', {
   langPath: langPath,
+  gzip: false,
+  cacheMethod: 'none',
   logger: m => console.log(m)
 }).then(({ data: { text } }) => {
   console.log("=== RESULT ===");

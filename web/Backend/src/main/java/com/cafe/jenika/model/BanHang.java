@@ -52,6 +52,18 @@ public class BanHang {
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
     private String ghiChu;
 
+    @Column(name = "anh_hoa_don_url", length = 500)
+    private String anhHoaDonUrl;
+
+    @Column(name = "tong_cost", precision = 15, scale = 0)
+    private BigDecimal tongCost;
+
+    @Column(name = "loi_nhuan", precision = 15, scale = 0)
+    private BigDecimal loiNhuan;
+
+    @Column(name = "tien_qua_tang", precision = 15, scale = 0)
+    private BigDecimal tienQuaTang;
+
     @OneToMany(mappedBy = "banHang", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ChiTietBanHang> chiTietBanHangs;
 }

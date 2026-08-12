@@ -8,9 +8,15 @@ import com.cafe.jenika.repository.BanHangRepository;
 import com.cafe.jenika.repository.SanPhamRepository;
 import com.cafe.jenika.repository.ThuChiRepository;
 import com.cafe.jenika.repository.LoaiThuChiRepository;
+import com.cafe.jenika.repository.BanHangSpecification;
 import com.cafe.jenika.model.ThuChi;
 import com.cafe.jenika.model.LoaiThuChi;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -18,6 +24,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.cafe.jenika.model.StoreConfig;
+import com.cafe.jenika.repository.StoreConfigRepository;
+import com.cafe.jenika.util.ExcelExporter;
 
 @Service
 public class BanHangService {
@@ -37,10 +46,28 @@ public class BanHangService {
     @Autowired
     private NhatKyService nhatKyService;
 
+    @Autowired
+    private StoreConfigRepository storeConfigRepository;
+
+    @Autowired
+    private S3Service s3Service;
+
     public List<BanHangDTO> getAllSalesOrders() {
         return banHangRepository.findAllByOrderByThoiGianDesc().stream()
                 .map(BanHangDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public Page<BanHangDTO> getSalesOrdersPaginated(
+            int page,
+            int size,
+            String search,
+            String status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "thoiGian"));
+        Specification<BanHang> spec = BanHangSpecification.filterSales(search, status, fromDate, toDate);
+        return banHangRepository.findAll(spec, pageable).map(BanHangDTO::fromEntity);
     }
 
     public Optional<BanHangDTO> getSalesOrderById(Integer id) {
@@ -50,15 +77,19 @@ public class BanHangService {
     @Transactional
     public BanHangDTO createSalesOrder(BanHangDTO orderDTO) {
         BanHang order = orderDTO.toEntity();
+        if (order.getAnhHoaDonUrl() != null && !order.getAnhHoaDonUrl().trim().isEmpty()) {
+            order.setAnhHoaDonUrl(s3Service.confirmFile(order.getAnhHoaDonUrl()));
+        }
         if (order.getThoiGian() == null) {
             order.setThoiGian(LocalDateTime.now());
         }
-        
         if (order.getTrangThai() == null) {
             order.setTrangThai("Hẹn");
         }
-
+        
         BigDecimal calculatedTotal = BigDecimal.ZERO;
+        BigDecimal calculatedCost = BigDecimal.ZERO;
+        BigDecimal calculatedGiftCost = BigDecimal.ZERO;
         
         if (order.getChiTietBanHangs() != null) {
             java.util.Set<String> uniqueKeys = new java.util.HashSet<>();
@@ -87,6 +118,14 @@ public class BanHangService {
                 }
 
                 sp.setSoLuongTon(sp.getSoLuongTon() - requestedQty);
+                
+                // Update product sale price if custom value is provided
+                if (detail.getIsGift() == null || !detail.getIsGift()) {
+                    if (detail.getGiaBan() != null && detail.getGiaBan().compareTo(BigDecimal.ZERO) > 0) {
+                        sp.setGiaBanHienTai(detail.getGiaBan());
+                    }
+                }
+                
                 sp.updateTrangThai();
                 sanPhamRepository.save(sp);
 
@@ -94,17 +133,28 @@ public class BanHangService {
                     detail.setDonVi(sp.getDonViTinh().getTenDonVi());
                 }
                 
-                BigDecimal itemPrice = detail.getIsGift() ? BigDecimal.ZERO : sp.getGiaBanHienTai();
+                BigDecimal itemPrice = detail.getIsGift() ? BigDecimal.ZERO : (detail.getGiaBan() != null ? detail.getGiaBan() : sp.getGiaBanHienTai());
                 detail.setGiaBan(itemPrice);
                 
                 BigDecimal detailTotal = itemPrice.multiply(BigDecimal.valueOf(requestedQty));
                 detail.setThanhTien(detailTotal);
                 
                 calculatedTotal = calculatedTotal.add(detailTotal);
+
+                BigDecimal itemCost = sp.getGiaNhapHienTai() != null ? sp.getGiaNhapHienTai() : BigDecimal.ZERO;
+                detail.setGiaVon(itemCost);
+                BigDecimal lineCost = itemCost.multiply(BigDecimal.valueOf(requestedQty));
+                calculatedCost = calculatedCost.add(lineCost);
+                if (detail.getIsGift() != null && detail.getIsGift()) {
+                    calculatedGiftCost = calculatedGiftCost.add(lineCost);
+                }
             }
         }
 
         order.setTongTien(calculatedTotal);
+        order.setTongCost(calculatedCost);
+        order.setTienQuaTang(calculatedGiftCost);
+        order.setLoiNhuan(calculatedTotal.subtract(calculatedCost));
         
         BigDecimal paid = order.getTienDaThanhToan() != null ? order.getTienDaThanhToan() : BigDecimal.ZERO;
         order.setTienDaThanhToan(paid);
@@ -126,7 +176,10 @@ public class BanHangService {
                 order.getDiaChiGiaoHang(),
                 order.getNgayLap(),
                 order.getTrangThai(),
-                order.getGhiChu()
+                order.getGhiChu(),
+                order.getTongCost(),
+                order.getLoiNhuan(),
+                order.getTienQuaTang()
             );
             // Fetch the parent to manage it in the Persistence Context
             saved = banHangRepository.findById(order.getId()).orElse(order);
@@ -278,8 +331,16 @@ public class BanHangService {
         existingOrder.setTrangThai(updatedOrder.getTrangThai());
         existingOrder.setTienDaThanhToan(updatedOrder.getTienDaThanhToan());
         existingOrder.setGhiChu(updatedOrder.getGhiChu());
+        
+        String confirmedUrl = updatedOrder.getAnhHoaDonUrl();
+        if (confirmedUrl != null && !confirmedUrl.trim().isEmpty()) {
+            confirmedUrl = s3Service.confirmFile(confirmedUrl);
+        }
+        existingOrder.setAnhHoaDonUrl(confirmedUrl);
 
         BigDecimal calculatedTotal = BigDecimal.ZERO;
+        BigDecimal calculatedCost = BigDecimal.ZERO;
+        BigDecimal calculatedGiftCost = BigDecimal.ZERO;
         boolean isNewActive = !"Hủy".equalsIgnoreCase(updatedOrder.getTrangThai());
 
         if (updatedOrder.getChiTietBanHangs() != null) {
@@ -295,6 +356,14 @@ public class BanHangService {
                         throw new IllegalStateException("Sản phẩm '" + sp.getTenSanPham() + "' không đủ hàng tồn kho. Còn lại: " + sp.getSoLuongTon());
                     }
                     sp.setSoLuongTon(sp.getSoLuongTon() - requestedQty);
+                    
+                    // Update product sale price if custom value is provided
+                    if (detail.getIsGift() == null || !detail.getIsGift()) {
+                        if (detail.getGiaBan() != null && detail.getGiaBan().compareTo(BigDecimal.ZERO) > 0) {
+                            sp.setGiaBanHienTai(detail.getGiaBan());
+                        }
+                    }
+                    
                     sp.updateTrangThai();
                     sanPhamRepository.save(sp);
                 }
@@ -303,18 +372,30 @@ public class BanHangService {
                     detail.setDonVi(sp.getDonViTinh().getTenDonVi());
                 }
 
-                BigDecimal itemPrice = detail.getIsGift() ? BigDecimal.ZERO : sp.getGiaBanHienTai();
+                BigDecimal itemPrice = detail.getIsGift() ? BigDecimal.ZERO : (detail.getGiaBan() != null ? detail.getGiaBan() : sp.getGiaBanHienTai());
                 detail.setGiaBan(itemPrice);
 
                 BigDecimal detailTotal = itemPrice.multiply(BigDecimal.valueOf(requestedQty));
                 detail.setThanhTien(detailTotal);
 
                 calculatedTotal = calculatedTotal.add(detailTotal);
+                
+                BigDecimal itemCost = sp.getGiaNhapHienTai() != null ? sp.getGiaNhapHienTai() : BigDecimal.ZERO;
+                detail.setGiaVon(itemCost);
+                BigDecimal lineCost = itemCost.multiply(BigDecimal.valueOf(requestedQty));
+                calculatedCost = calculatedCost.add(lineCost);
+                if (detail.getIsGift() != null && detail.getIsGift()) {
+                    calculatedGiftCost = calculatedGiftCost.add(lineCost);
+                }
+                
                 existingOrder.getChiTietBanHangs().add(detail);
             }
         }
 
         existingOrder.setTongTien(calculatedTotal);
+        existingOrder.setTongCost(calculatedCost);
+        existingOrder.setTienQuaTang(calculatedGiftCost);
+        existingOrder.setLoiNhuan(calculatedTotal.subtract(calculatedCost));
         BigDecimal paid = updatedOrder.getTienDaThanhToan() != null ? updatedOrder.getTienDaThanhToan() : BigDecimal.ZERO;
         existingOrder.setTienDaThanhToan(paid);
         existingOrder.setTienNo(calculatedTotal.subtract(paid));
@@ -346,26 +427,15 @@ public class BanHangService {
 
         BigDecimal paid = order.getTienDaThanhToan() != null ? order.getTienDaThanhToan() : BigDecimal.ZERO;
 
-        BigDecimal totalGiftCost = BigDecimal.ZERO;
-        if (order.getChiTietBanHangs() != null) {
-            for (ChiTietBanHang detail : order.getChiTietBanHangs()) {
-                if (detail.getIsGift() != null && detail.getIsGift()) {
-                    SanPham sp = detail.getSanPham();
-                    if (sp != null) {
-                        SanPham dbSp = sanPhamRepository.findById(sp.getId()).orElse(sp);
-                        BigDecimal giaNhap = dbSp.getGiaNhapHienTai() != null ? dbSp.getGiaNhapHienTai() : BigDecimal.ZERO;
-                        BigDecimal cost = giaNhap.multiply(BigDecimal.valueOf(detail.getSoLuong()));
-                        totalGiftCost = totalGiftCost.add(cost);
-                    }
-                }
-            }
-        }
+        // Không tính thêm chi phí quà tặng ở đây vì chi phí nhập hàng (bao gồm
+        // cả sản phẩm tặng) đã được ghi nhận khi tạo đơn nhập hàng.
+        // Nếu tính lại sẽ bị double chi phí.
 
-        if (paid.compareTo(BigDecimal.ZERO) <= 0 && totalGiftCost.compareTo(BigDecimal.ZERO) <= 0) {
+        if (paid.compareTo(BigDecimal.ZERO) <= 0) {
             existingOpt.ifPresent(thuChi -> {
                 thuChiRepository.delete(thuChi);
                 nhatKyService.log("XOA", "thu_chi", "TC-" + thuChi.getId(),
-                        "Tự động xóa khoản thu chi do đơn bán hàng BH-" + order.getId() + " thay đổi số tiền thanh toán và quà tặng về 0.");
+                        "Tự động xóa khoản thu do đơn bán hàng BH-" + order.getId() + " thay đổi số tiền thanh toán về 0.");
             });
             return;
         }
@@ -376,7 +446,7 @@ public class BanHangService {
 
         thuChi.setThoiGian(order.getThoiGian() != null ? order.getThoiGian() : LocalDateTime.now());
         thuChi.setTienThu(paid);
-        thuChi.setTienChi(totalGiftCost);
+        thuChi.setTienChi(BigDecimal.ZERO);
         thuChi.setPhuongThuc("Chuyển khoản ngân hàng");
         thuChi.setTrangThai("Đã chi");
         thuChi.setNhanVien(order.getNhanVien());
@@ -385,16 +455,30 @@ public class BanHangService {
         thuChi.setLoaiThuChi(loai);
 
         String customerName = order.getDoiTac() != null ? order.getDoiTac().getTen() : "Khách lẻ";
-        String moTa = "Doanh thu từ đơn bán hàng BH-" + order.getId() + ". Khách hàng: " + customerName;
-        if (totalGiftCost.compareTo(BigDecimal.ZERO) > 0) {
-            moTa += " (Trừ giá trị quà tặng: " + totalGiftCost + "đ)";
-        }
-        thuChi.setMoTa(moTa);
+        thuChi.setMoTa("Doanh thu từ đơn bán hàng BH-" + order.getId() + ". Khách hàng: " + customerName);
 
         ThuChi saved = thuChiRepository.save(thuChi);
 
         String logAction = existingOpt.isPresent() ? "SUA" : "THEM";
         nhatKyService.log(logAction, "thu_chi", "TC-" + saved.getId(),
-                "Tự động đồng bộ khoản thu chi từ đơn bán hàng BH-" + order.getId() + ". Thu: " + paid + "đ, Chi (quà tặng): " + totalGiftCost + "đ");
+                "Tự động đồng bộ khoản thu từ đơn bán hàng BH-" + order.getId() + ". Thu: " + paid + "đ");
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportSalesOrderToExcel(Integer id) throws Exception {
+        BanHang order = banHangRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn bán hàng ID: " + id));
+        if (order.getChiTietBanHangs() != null) {
+            order.getChiTietBanHangs().forEach(ct -> {
+                if (ct.getSanPham() != null) {
+                    ct.getSanPham().getTenSanPham();
+                    if (ct.getSanPham().getDonViTinh() != null) {
+                        ct.getSanPham().getDonViTinh().getTenDonVi();
+                    }
+                }
+            });
+        }
+        StoreConfig config = storeConfigRepository.findById(1).orElse(new StoreConfig());
+        return ExcelExporter.exportSalesOrder(order, config);
     }
 }

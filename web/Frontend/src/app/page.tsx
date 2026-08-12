@@ -22,22 +22,42 @@ export default function Home() {
 
   const [recentOrders, setRecentOrders] = useState<OrderItem[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
+  const [weeklyRevenue, setWeeklyRevenue] = useState<number[]>([0, 0, 0, 0, 0]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch dashboard stats
-        const data = await reportService.getDashboardData();
+        // Fetch all dashboard data in parallel to avoid async waterfall
+        const [data, orders, products] = await Promise.all([
+          reportService.getDashboardData(),
+          saleService.getSaleOrders(),
+          productService.getLowStockProducts()
+        ]);
+
         setStats(data);
-
-        // Fetch recent sales orders
-        const orders = await saleService.getSaleOrders();
         setRecentOrders(orders.slice(0, 4)); // Show top 4 latest orders
-
-        // Fetch low stock warnings
-        const products = await productService.getLowStockProducts();
         setLowStockProducts(products.slice(0, 3) as any); // Show top 3 warnings
+
+        // Calculate weekly revenue for current month
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const tempWeekly = [0, 0, 0, 0, 0];
+        
+        orders.forEach((order: any) => {
+          if (order.trangThai === 'Hủy') return;
+          const orderDate = new Date(order.thoiGian);
+          if (orderDate.getFullYear() === y && orderDate.getMonth() === m) {
+            const day = orderDate.getDate();
+            if (day >= 1 && day <= 7) tempWeekly[0] += order.tongTien;
+            else if (day >= 8 && day <= 14) tempWeekly[1] += order.tongTien;
+            else if (day >= 15 && day <= 21) tempWeekly[2] += order.tongTien;
+            else if (day >= 22 && day <= 28) tempWeekly[3] += order.tongTien;
+            else if (day >= 29) tempWeekly[4] += order.tongTien;
+          }
+        });
+        setWeeklyRevenue(tempWeekly);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
       } finally {
@@ -62,13 +82,28 @@ export default function Home() {
     }
   };
 
+  const maxVal = Math.max(...weeklyRevenue);
+  const maxRevenue = maxVal > 0 ? maxVal : 1000000;
+  const getChartY = (val: number) => {
+    const height = 180;
+    const ratio = val / maxRevenue;
+    return 220 - (ratio * height);
+  };
+
+  const y1 = getChartY(weeklyRevenue[0]);
+  const y2 = getChartY(weeklyRevenue[1]);
+  const y3 = getChartY(weeklyRevenue[2]);
+  const y4 = getChartY(weeklyRevenue[3]);
+  const y5 = getChartY(weeklyRevenue[4]);
+
   return (
     <div className="h-[calc(100vh-16px)] overflow-hidden flex flex-col pt-2 pb-2 px-4 space-y-3 w-full relative">
       {/* Top Header Controls */}
       <div className="flex justify-between items-center flex-shrink-0">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-wide">Tổng quan Báo cáo</h2>
-          <p className="text-[10px] text-on-surface-variant mt-0.5">Theo dõi hiệu năng kinh doanh, dòng tiền và cảnh báo tồn kho quán.</p>
+          <h2 className="text-xl font-bold text-white tracking-wide">
+            Tổng quan Báo cáo <span className="text-xs text-primary font-medium ml-2">(Tháng {new Date().getMonth() + 1}/{new Date().getFullYear()})</span>
+          </h2>
         </div>
       </div>
 
@@ -134,7 +169,7 @@ export default function Home() {
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h4 className="text-sm font-bold text-white">Phân tích Bán hàng</h4>
-                    <p className="text-[10px] text-on-surface-variant">Tổng quan hiệu suất hoạt động tuần này</p>
+                    <p className="text-[10px] text-on-surface-variant">Tổng quan hiệu suất hoạt động trong tháng hiện tại</p>
                   </div>
                   <div className="text-[10px] text-primary font-bold px-3 py-1.5 border border-primary/20 rounded-lg">
                     Thời gian thực
@@ -154,16 +189,18 @@ export default function Home() {
                     <line stroke="rgba(255,255,255,0.05)" strokeWidth="1" x1="0" x2="1000" y1="160" y2="160"></line>
                     <line stroke="rgba(255,255,255,0.1)" strokeWidth="1" x1="0" x2="1000" y1="220" y2="220"></line>
                     {/* Area Path */}
-                    <path d="M0,220 L0,160 L150,120 L300,144 L450,80 L600,112 L750,48 L900,88 L1000,72 L1000,220 Z" fill="url(#chartGradient)"></path>
+                    <path d={`M0,220 L0,${y1} L250,${y2} L500,${y3} L750,${y4} L1000,${y5} L1000,220 Z`} fill="url(#chartGradient)"></path>
                     {/* Line Path */}
-                    <path className="drop-shadow-[0_0_10px_rgba(73,252,223,0.5)]" d="M0,160 L150,120 L300,144 L450,80 L600,112 L750,48 L900,88 L1000,72" fill="none" stroke="#49fcdf" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4"></path>
+                    <path className="drop-shadow-[0_0_10px_rgba(73,252,223,0.5)]" d={`M0,${y1} L250,${y2} L500,${y3} L750,${y4} L1000,${y5}`} fill="none" stroke="#49fcdf" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4"></path>
                     {/* Data Points */}
-                    <circle cx="150" cy="120" fill="#49fcdf" r="5"></circle>
-                    <circle cx="450" cy="80" fill="#49fcdf" r="5"></circle>
-                    <circle className="animate-pulse" cx="750" cy="48" fill="#49fcdf" r="7"></circle>
+                    <circle cx="0" cy={y1} fill="#49fcdf" r="5"><title>Tuần 1: {formatVND(weeklyRevenue[0])}</title></circle>
+                    <circle cx="250" cy={y2} fill="#49fcdf" r="5"><title>Tuần 2: {formatVND(weeklyRevenue[1])}</title></circle>
+                    <circle cx="500" cy={y3} fill="#49fcdf" r="5"><title>Tuần 3: {formatVND(weeklyRevenue[2])}</title></circle>
+                    <circle cx="750" cy={y4} fill="#49fcdf" r="5"><title>Tuần 4: {formatVND(weeklyRevenue[3])}</title></circle>
+                    <circle className="animate-pulse" cx="1000" cy={y5} fill="#49fcdf" r="7"><title>Tuần 5: {formatVND(weeklyRevenue[4])}</title></circle>
                   </svg>
-                  <div className="flex justify-between mt-3 text-[9px] text-on-surface-variant font-bold px-2">
-                    <span>THỨ 2</span><span>THỨ 3</span><span>THỨ 4</span><span>THỨ 5</span><span>THỨ 6</span><span>THỨ 7</span><span>CHỦ NHẬT</span>
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-between text-[9px] text-on-surface-variant font-bold px-2">
+                    <span>TUẦN 1</span><span>TUẦN 2</span><span>TUẦN 3</span><span>TUẦN 4</span><span>TUẦN 5</span>
                   </div>
                 </div>
               </div>

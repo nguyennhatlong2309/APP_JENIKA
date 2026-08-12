@@ -43,4 +43,7 @@ public class ChiTietBanHang {
 
     @Column(name = "is_gift", nullable = false)
     private Boolean isGift;
+
+    @Column(name = "gia_von", precision = 15, scale = 0)
+    private BigDecimal giaVon;
 }

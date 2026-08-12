@@ -16,6 +16,7 @@ public class ChiTietBanHangDTO {
     private BigDecimal giaBan;
     private BigDecimal thanhTien;
     private Boolean isGift;
+    private BigDecimal giaVon;
 
     public static ChiTietBanHangDTO fromEntity(ChiTietBanHang entity) {
         if (entity == null) return null;
@@ -27,6 +28,7 @@ public class ChiTietBanHangDTO {
                 .giaBan(entity.getGiaBan())
                 .thanhTien(entity.getThanhTien())
                 .isGift(entity.getIsGift())
+                .giaVon(entity.getGiaVon())
                 .build();
     }
 
@@ -39,6 +41,7 @@ public class ChiTietBanHangDTO {
                 .giaBan(this.giaBan)
                 .thanhTien(this.thanhTien)
                 .isGift(this.isGift)
+                .giaVon(this.giaVon)
                 .build();
     }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Pagination from '@/components/ui/Pagination';
 
 import { ActivityLog } from '@/types';
 import { activityService } from '@/services/activityService';
@@ -9,6 +10,27 @@ export default function ActivityPage() {
   const [actionFilter, setActionFilter] = useState<'Tất cả' | 'THEM' | 'SUA' | 'XOA'>('Tất cả');
   const [moduleFilter, setModuleFilter] = useState<string>('Tất cả phân hệ');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [actionFilter, moduleFilter]);
 
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,8 +38,16 @@ export default function ActivityPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await activityService.getActivityLogs();
-      setLogs(data);
+      const data = await activityService.getActivityLogsPage({
+        page: currentPage - 1,
+        size: itemsPerPage,
+        search: debouncedSearchQuery,
+        thaoTac: actionFilter,
+        tab: moduleFilter
+      });
+      setLogs(data.content);
+      setTotalItems(data.totalElements);
+      setTotalPages(data.totalPages);
     } catch (err) {
       console.error("Error loading activity logs:", err);
     } finally {
@@ -27,7 +57,7 @@ export default function ActivityPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentPage, itemsPerPage, actionFilter, moduleFilter, debouncedSearchQuery]);
 
   const getActionBadge = (action: string) => {
     switch (action) {
@@ -62,25 +92,6 @@ export default function ActivityPage() {
     }
   };
 
-  // Filters
-  const filteredLogs = logs.filter((log) => {
-    // Action filter
-    if (actionFilter !== 'Tất cả' && log.thaoTac !== actionFilter) return false;
-
-    // Module
-    if (moduleFilter !== 'Tất cả phân hệ' && log.tab !== moduleFilter) return false;
-
-    // Search
-    const query = searchQuery.toLowerCase();
-    const matchesSearch =
-      `lg-${log.id}`.includes(query) ||
-      log.moTa.toLowerCase().includes(query) ||
-      log.thaoTac.toLowerCase().includes(query) ||
-      (log.maBanGhi && log.maBanGhi.toLowerCase().includes(query));
-    
-    return matchesSearch;
-  });
-
   const renderTableBody = () => {
     if (loading) {
       return (
@@ -92,7 +103,7 @@ export default function ActivityPage() {
       );
     }
 
-    if (filteredLogs.length === 0) {
+    if (logs.length === 0) {
       return (
         <tr>
           <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant text-xs font-semibold">
@@ -102,7 +113,7 @@ export default function ActivityPage() {
       );
     }
 
-    return filteredLogs.map((log) => (
+    return logs.map((log) => (
       <tr key={log.id} className="hover:bg-white/5 transition-all group">
         <td className="px-4 py-2.5 text-xs text-on-surface-variant group-hover:text-on-surface">
           {new Date(log.thoiGian).toLocaleString('vi-VN')}
@@ -132,7 +143,6 @@ export default function ActivityPage() {
       <div className="flex justify-between items-center flex-shrink-0">
         <div>
           <h2 className="text-xl font-bold text-white tracking-wide">Nhật ký hoạt động</h2>
-          <p className="text-[10px] text-on-surface-variant mt-0.5">Theo dõi lịch sử chỉnh sửa, cập nhật của hệ thống.</p>
         </div>
         <div className="relative w-60">
           <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant opacity-60">
@@ -148,28 +158,6 @@ export default function ActivityPage() {
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
-        <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg text-lg">history</span>
-            <div>
-              <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Tổng số lượt lưu vết</p>
-              <h3 className="text-sm font-bold text-on-surface">{logs.length} Nhật ký</h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="glass-card py-2.5 px-4 rounded-xl flex items-center justify-between hover:border-primary/30 transition-all">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-success bg-success/10 p-2 rounded-lg text-lg">security</span>
-            <div>
-              <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Trạng thái bảo mật</p>
-              <h3 className="text-sm font-bold text-success">AN TOÀN</h3>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Logs Viewer Section */}
       <div className="flex-1 w-full flex flex-col h-full overflow-hidden glass-card rounded-xl">
@@ -183,11 +171,10 @@ export default function ActivityPage() {
                   <button
                     key={sev}
                     onClick={() => setActionFilter(sev)}
-                    className={`px-2.5 py-0.5 rounded text-[10px] transition-all cursor-pointer ${
-                      actionFilter === sev
-                        ? 'bg-primary text-on-primary font-bold shadow-[0_0_10px_rgba(73,252,223,0.3)]'
-                        : 'text-on-surface-variant hover:text-primary'
-                    }`}
+                    className={`px-2.5 py-0.5 rounded text-[10px] transition-all cursor-pointer ${actionFilter === sev
+                      ? 'bg-primary text-on-primary font-bold shadow-[0_0_10px_rgba(73,252,223,0.3)]'
+                      : 'text-on-surface-variant hover:text-primary'
+                      }`}
                   >
                     {getActionLabel(sev)}
                   </button>
@@ -211,12 +198,12 @@ export default function ActivityPage() {
             </div>
           </div>
           <div className="text-xs text-on-surface-variant font-semibold">
-            Hiển thị <span className="text-white font-bold">{filteredLogs.length}</span> nhật ký
+            Hiển thị <span className="text-white font-bold">{totalItems}</span> nhật ký
           </div>
         </div>
 
         {/* Data Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto" data-lenis-prevent="">
           <table className="w-full text-left border-collapse relative">
             <thead className="sticky top-0 z-20 shadow-[0_1px_0_0_rgba(255,255,255,0.08)] bg-[#131929]">
               <tr className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
@@ -233,6 +220,18 @@ export default function ActivityPage() {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={(size) => {
+            setItemsPerPage(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
     </div>
   );

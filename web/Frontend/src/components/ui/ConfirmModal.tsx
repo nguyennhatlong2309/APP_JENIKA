@@ -70,7 +70,7 @@ export default function ConfirmModal({
   const styles = getTypeStyles();
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm animate-in fade-in duration-200">
       {/* Backdrop click handler */}
       <div className="absolute inset-0" onClick={onCancel}></div>
 

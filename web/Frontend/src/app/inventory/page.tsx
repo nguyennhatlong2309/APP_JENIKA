@@ -39,7 +39,6 @@ function InventoryContent() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
 
   // Checklist searches
-  const [categorySearch, setCategorySearch] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
 
   // Pagination states
@@ -63,48 +62,107 @@ function InventoryContent() {
   const [warningStock, setWarningStock] = useState<number>(5);
   const [ghiChu, setGhiChu] = useState('');
 
+  // Delete confirm modal states
+  const [productToDelete, setProductToDelete] = useState<ProductItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Data list
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  // Fetch initial data
-  const loadData = async () => {
+  // Pagination & counts states
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalFilteredItems, setTotalFilteredItems] = useState(0);
+  const [stats, setStats] = useState({
+    totalItems: 0,
+    totalValue: 0,
+    lowStockCount: 0,
+    activeCount: 0,
+    deletedCount: 0
+  });
+
+  // Debounced search query
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const fetchStats = async () => {
+    try {
+      const statsData = await productService.getProductStats();
+      setStats(statsData);
+    } catch (err) {
+      console.error("Error loading product stats:", err);
+    }
+  };
+
+  const fetchProducts = async () => {
     try {
       setLoading(true);
-      // Fetch all products (including deleted ones)
-      try {
-        const prodData = await productService.getAllProducts();
-        setProducts(prodData);
-        console.log(prodData);
-      } catch (err) {
-        // Fallback to active-only if new endpoint fails
-        const fallbackData = await productService.getActiveProducts();
-        setProducts(fallbackData);
-      }
+      const isDeleted = activeTab === 'bi-an';
 
-      // Metadata
-      const cats = await productService.getCategories();
+      const pageData = await productService.getProductsPage({
+        page: currentPage - 1, // Spring Boot is 0-indexed
+        size: itemsPerPage,
+        biXoa: isDeleted,
+        search: debouncedSearchQuery.trim() || undefined,
+        categoryIds: selectedCategories.length > 0 ? selectedCategories : undefined,
+        groupIds: selectedGroups.length > 0 ? selectedGroups : undefined,
+        statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined
+      });
+
+      setProducts(pageData.content);
+      setTotalPages(pageData.totalPages);
+      setTotalFilteredItems(pageData.totalElements);
+    } catch (err) {
+      console.error("Error loading products page:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch initial metadata and stats
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      // Fetch metadata and stats in parallel
+      const [cats, uns, gps] = await Promise.all([
+        productService.getCategories(),
+        productService.getUnits(),
+        productService.getGroups(),
+        fetchStats()
+      ]);
+
       setCategories(cats);
       if (cats.length > 0 && !categoryId) setCategoryId(cats[0].id.toString());
 
-      const uns = await productService.getUnits();
       setUnits(uns);
       if (uns.length > 0 && !unitId) setUnitId(uns[0].id.toString());
 
-      const gps = await productService.getGroups();
       setGroups(gps);
       if (gps.length > 0 && !groupId) setGroupId(gps[0].id.toString());
     } catch (err) {
-      console.error("Error loading inventory data:", err);
+      console.error("Error loading initial inventory data:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadInitialData();
   }, []);
+
+  // Fetch page products when parameters change
+  useEffect(() => {
+    fetchProducts();
+  }, [currentPage, itemsPerPage, debouncedSearchQuery, selectedCategories, selectedGroups, selectedStatuses, activeTab]);
 
   // Open modal if query is add=true
   useEffect(() => {
@@ -124,10 +182,7 @@ function InventoryContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedCategories, selectedGroups, selectedStatuses, activeTab]);
+
 
   // Close group dropdown when clicking outside
   useEffect(() => {
@@ -225,28 +280,41 @@ function InventoryContent() {
         await productService.createProduct(payload);
       }
       closeModal();
-      loadData();
+      fetchProducts();
+      fetchStats();
     } catch (err) {
       console.error(err);
       setModalError("Lỗi kết nối máy chủ hoặc lỗi khi lưu sản phẩm.");
     }
   };
 
-  const handleDeleteProduct = async (id: number) => {
-    if (!confirm("Bạn có chắc chắn muốn ẩn sản phẩm này (xóa mềm)?")) return;
+  const handleDeleteProduct = (product: ProductItem) => {
+    setProductToDelete(product);
+    setDeleteError(null);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
     try {
-      await productService.deleteProduct(id);
-      loadData();
+      await productService.deleteProduct(productToDelete.id);
+      setProductToDelete(null);
+      fetchProducts();
+      fetchStats();
     } catch (err) {
       console.error(err);
-      alert("Không thể ẩn sản phẩm.");
+      setDeleteError("Không thể ẩn sản phẩm. Vui lòng thử lại sau.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleRestoreProduct = async (id: number) => {
     try {
       await productService.restoreProduct(id);
-      loadData();
+      fetchProducts();
+      fetchStats();
     } catch (err) {
       console.error(err);
       alert("Không thể khôi phục sản phẩm.");
@@ -258,7 +326,8 @@ function InventoryContent() {
     try {
       await productService.updateCategory(id, { tenDanhMuc: editCategoryName.trim() });
       setEditingCategoryId(null);
-      loadData();
+      loadInitialData();
+      fetchProducts();
     } catch (err) {
       console.error(err);
       alert("Không thể cập nhật tên danh mục.");
@@ -270,59 +339,13 @@ function InventoryContent() {
     try {
       await productService.updateGroup(id, { tenNhom: editGroupName.trim() });
       setEditingGroupId(null);
-      loadData();
+      loadInitialData();
+      fetchProducts();
     } catch (err) {
       console.error(err);
       alert("Không thể cập nhật tên nhóm sản phẩm.");
     }
   };
-
-  // Calculations for stats (based on active products only)
-  const activeProducts = products.filter(p => !p.biXoa);
-  const totalItems = activeProducts.reduce((sum, p) => sum + (p.soLuongTon || 0), 0);
-  const lowStockCount = activeProducts.filter((p) => (p.soLuongTon || 0) <= (p.canhBaoTonKho || 5)).length;
-  const totalValue = activeProducts.reduce((sum, p) => sum + (p.soLuongTon || 0) * (p.giaNhapHienTai || 0), 0);
-
-  // Filter products dynamically
-  const filteredProducts = products.filter((p) => {
-    // 1. Tab filter
-    if (activeTab === 'dang-kinh-doanh' && p.biXoa) return false;
-    if (activeTab === 'bi-an' && !p.biXoa) return false;
-
-    // 2. Search query filter
-    const matchesSearch =
-      p.tenSanPham.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      `sp-${p.id}`.includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
-
-    // 3. Category filter
-    if (selectedCategories.length > 0) {
-      if (!p.danhMuc || !selectedCategories.includes(p.danhMuc.id)) {
-        return false;
-      }
-    }
-
-    // 4. Group filter
-    if (selectedGroups.length > 0) {
-      if (!p.nhomSanPham || !selectedGroups.includes(p.nhomSanPham.id)) {
-        return false;
-      }
-    }
-
-    // 5. Stock Status filter
-    if (selectedStatuses.length > 0) {
-      if (!selectedStatuses.includes(p.trangThai)) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  // Calculate paginated products list
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="h-[calc(100vh-16px)] overflow-hidden flex flex-col pt-2 pb-2 px-4 space-y-3 w-full relative">
@@ -330,7 +353,6 @@ function InventoryContent() {
       <div className="flex justify-between items-center flex-shrink-0">
         <div>
           <h2 className="text-xl font-bold text-white tracking-wide">Danh mục Hàng hóa</h2>
-          <p className="text-[10px] text-on-surface-variant mt-0.5">Quản lý thực đơn, sản phẩm và theo dõi lượng hàng tồn kho.</p>
         </div>
         <button
           onClick={() => {
@@ -361,7 +383,7 @@ function InventoryContent() {
             <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg text-lg">inventory_2</span>
             <div>
               <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Tổng số lượng tồn</p>
-              <h3 className="text-sm font-bold text-on-surface">{totalItems.toLocaleString()} Sản phẩm</h3>
+              <h3 className="text-sm font-bold text-on-surface">{stats.totalItems.toLocaleString()} Sản phẩm</h3>
             </div>
           </div>
         </div>
@@ -371,17 +393,17 @@ function InventoryContent() {
             <span className="material-symbols-outlined text-secondary bg-secondary/10 p-2 rounded-lg text-lg">account_balance_wallet</span>
             <div>
               <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Giá trị kho (Giá nhập)</p>
-              <h3 className="text-sm font-bold text-on-surface">{formatVND(totalValue)}</h3>
+              <h3 className="text-sm font-bold text-on-surface">{formatVND(stats.totalValue)}</h3>
             </div>
           </div>
         </div>
 
-        <div className={`glass-card py-2.5 px-4 rounded-xl flex items-center justify-between transition-all ${lowStockCount > 0 ? 'border-warning/30 hover:border-warning/50' : 'hover:border-primary/30'}`}>
+        <div className={`glass-card py-2.5 px-4 rounded-xl flex items-center justify-between transition-all ${stats.lowStockCount > 0 ? 'border-warning/30 hover:border-warning/50' : 'hover:border-primary/30'}`}>
           <div className="flex items-center gap-3">
-            <span className={`material-symbols-outlined p-2 rounded-lg text-lg ${lowStockCount > 0 ? 'text-warning bg-warning/10' : 'text-primary bg-primary/10'}`}>warning</span>
+            <span className={`material-symbols-outlined p-2 rounded-lg text-lg ${stats.lowStockCount > 0 ? 'text-warning bg-warning/10' : 'text-primary bg-primary/10'}`}>warning</span>
             <div>
               <p className="text-on-surface-variant text-[10px] uppercase tracking-wider mb-0.5">Cảnh báo hết hàng</p>
-              <h3 className={`text-sm font-bold ${lowStockCount > 0 ? 'text-warning' : 'text-on-surface'}`}>{lowStockCount} Sản phẩm</h3>
+              <h3 className={`text-sm font-bold ${stats.lowStockCount > 0 ? 'text-warning' : 'text-on-surface'}`}>{stats.lowStockCount} Sản phẩm</h3>
             </div>
           </div>
         </div>
@@ -426,21 +448,8 @@ function InventoryContent() {
               {/* Filter 1: Danh mục (Fixed size) */}
               <div className="flex-shrink-0 space-y-2">
                 <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Danh mục</p>
-                <div className="relative mb-2">
-                  <span className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant opacity-60">
-                    search
-                  </span>
-                  <input
-                    value={categorySearch}
-                    onChange={(e) => setCategorySearch(e.target.value)}
-                    className="w-full bg-surface-lowest border border-border-glass rounded py-1 pl-7 pr-2 text-xs text-white outline-none focus:ring-1 focus:ring-primary/40"
-                    placeholder="Tìm danh mục..."
-                    type="text"
-                  />
-                </div>
-                <div className="max-h-[110px] overflow-y-auto pr-1 space-y-1">
+                <div className="max-h-[110px] overflow-y-auto pr-1 space-y-1" data-lenis-prevent="">
                   {categories
-                    .filter(cat => cat.tenDanhMuc.toLowerCase().includes(categorySearch.toLowerCase()))
                     .map(cat => {
                       const isSelected = selectedCategories.includes(cat.id);
                       const isEditing = editingCategoryId === cat.id;
@@ -486,6 +495,7 @@ function InventoryContent() {
                                     } else {
                                       setSelectedCategories([...selectedCategories, cat.id]);
                                     }
+                                    setCurrentPage(1);
                                   }}
                                   className="rounded border-border-glass text-primary focus:ring-primary/50 bg-surface-lowest w-3.5 h-3.5"
                                 />
@@ -526,7 +536,7 @@ function InventoryContent() {
                     type="text"
                   />
                 </div>
-                <div className="flex-1 overflow-y-auto pr-1 space-y-1 min-h-0">
+                <div className="flex-1 overflow-y-auto pr-1 space-y-1 min-h-0" data-lenis-prevent="">
                   {groups
                     .filter(g => g.tenNhom.toLowerCase().includes(groupSearch.toLowerCase()))
                     .map(g => {
@@ -574,6 +584,7 @@ function InventoryContent() {
                                     } else {
                                       setSelectedGroups([...selectedGroups, g.id]);
                                     }
+                                    setCurrentPage(1);
                                   }}
                                   className="rounded border-border-glass text-primary focus:ring-primary/50 bg-surface-lowest w-3.5 h-3.5"
                                 />
@@ -621,6 +632,7 @@ function InventoryContent() {
                               } else {
                                 setSelectedStatuses([...selectedStatuses, status]);
                               }
+                              setCurrentPage(1);
                             }}
                             className="rounded border-border-glass text-primary focus:ring-primary/50 bg-surface-lowest w-3.5 h-3.5"
                           />
@@ -643,6 +655,7 @@ function InventoryContent() {
               <button
                 onClick={() => {
                   setActiveTab('dang-kinh-doanh');
+                  setCurrentPage(1);
                 }}
                 className={`pb-2.5 font-bold text-sm transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${activeTab === 'dang-kinh-doanh'
                   ? 'border-primary text-primary'
@@ -651,12 +664,13 @@ function InventoryContent() {
               >
                 <span>Hàng hóa đang kinh doanh</span>
                 <span className="text-[10px] bg-primary/20 text-primary py-0.5 px-2 rounded-full">
-                  {products.filter(p => !p.biXoa).length}
+                  {stats.activeCount}
                 </span>
               </button>
               <button
                 onClick={() => {
                   setActiveTab('bi-an');
+                  setCurrentPage(1);
                 }}
                 className={`pb-2.5 font-bold text-sm transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${activeTab === 'bi-an'
                   ? 'border-primary text-primary'
@@ -665,7 +679,7 @@ function InventoryContent() {
               >
                 <span>Hàng hóa bị ẩn</span>
                 <span className="text-[10px] bg-error/20 text-error py-0.5 px-2 rounded-full">
-                  {products.filter(p => p.biXoa).length}
+                  {stats.deletedCount}
                 </span>
               </button>
             </div>
@@ -683,13 +697,13 @@ function InventoryContent() {
                 />
               </div>
               <div className="text-xs text-on-surface-variant font-semibold">
-                Hiển thị <span className="text-white font-bold">{filteredProducts.length}</span> sản phẩm
+                Hiển thị <span className="text-white font-bold">{totalFilteredItems}</span> sản phẩm
               </div>
             </div>
           </div>
 
           {/* Table Content - Internally Scrollable Wrapper */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto" data-lenis-prevent="">
             <table className="w-full text-left border-collapse relative">
               <thead className="sticky top-0 z-20 shadow-[0_1px_0_0_rgba(255,255,255,0.08)] bg-[#131929]">
                 <tr className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
@@ -711,14 +725,14 @@ function InventoryContent() {
                       Đang tải danh sách hàng hóa...
                     </td>
                   </tr>
-                ) : paginatedProducts.length === 0 ? (
+                ) : products.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-6 py-12 text-center text-on-surface-variant text-xs font-semibold">
                       Không tìm thấy sản phẩm nào khớp với bộ lọc.
                     </td>
                   </tr>
                 ) : (
-                  paginatedProducts.map((p) => {
+                  products.map((p) => {
                     const isLow = p.soLuongTon <= p.canhBaoTonKho;
                     const isOutOfStock = p.soLuongTon <= 0 || p.trangThai === 'Hết hàng';
                     const isWarning = !isOutOfStock && (p.soLuongTon <= p.canhBaoTonKho || p.trangThai === 'Cảnh báo');
@@ -819,7 +833,7 @@ function InventoryContent() {
                                   <span className="material-symbols-outlined text-lg">edit</span>
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteProduct(p.id)}
+                                  onClick={() => handleDeleteProduct(p)}
                                   className="p-1 text-on-surface-variant hover:text-error transition-colors cursor-pointer rounded hover:bg-white/5 inline-flex items-center justify-center"
                                   title="Ẩn sản phẩm (Xóa mềm)"
                                 >
@@ -851,7 +865,7 @@ function InventoryContent() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
-              totalItems={filteredProducts.length}
+              totalItems={totalFilteredItems}
               itemsPerPage={itemsPerPage}
               onItemsPerPageChange={(size) => {
                 setItemsPerPage(size);
@@ -864,7 +878,7 @@ function InventoryContent() {
 
       {/* Add / Edit Product Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           {/* Backdrop */}
           <div className="absolute inset-0" onClick={closeModal}></div>
 
@@ -1104,11 +1118,11 @@ function InventoryContent() {
 
       {/* Child Modal to create New Group */}
       {isNewGroupModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-background/90 backdrop-blur-md">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           {/* Small Backdrop */}
-          <div className="absolute inset-0 bg-black/40" onClick={() => setIsNewGroupModalOpen(false)}></div>
+          <div className="absolute inset-0" onClick={() => setIsNewGroupModalOpen(false)}></div>
 
-          <div className="relative glass-card w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden z-[120] animate-in fade-in zoom-in-95 duration-200 p-6 border border-border-glass bg-[#131929]">
+          <div className="relative glass-card w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden z-[120] animate-in fade-in zoom-in-95 duration-200 p-6 border border-border-glass">
             <h4 className="text-sm font-bold text-primary mb-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-base">folder_open</span>
               Tạo nhóm sản phẩm mới
@@ -1151,6 +1165,69 @@ function InventoryContent() {
                 >
                   {isCreatingGroup ? 'Đang tạo...' : 'Tạo mới'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {productToDelete !== null && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          {/* Backdrop */}
+          <div className="absolute inset-0" onClick={() => { if (!isDeleting) { setProductToDelete(null); setDeleteError(null); } }}></div>
+
+          <div className="relative glass-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden z-[120] animate-in fade-in zoom-in-95 duration-200 p-6 border border-border-glass">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 bg-error/15 text-error p-3 rounded-full flex items-center justify-center">
+                <span className="material-symbols-outlined text-2xl">warning</span>
+              </div>
+              <div className="flex-1 space-y-2">
+                <h4 className="text-base font-bold text-white">
+                  Xác nhận ẩn sản phẩm
+                </h4>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Bạn có chắc chắn muốn ẩn sản phẩm <strong className="text-white">{productToDelete.tenSanPham}</strong> này không?
+                  Sản phẩm sẽ bị chuyển sang mục <span className="font-semibold text-primary">"Hàng hóa bị ẩn"</span> và không hiển thị trong menu bán hàng.
+                </p>
+
+                {deleteError && (
+                  <p className="text-[11px] font-semibold text-error bg-error/10 border border-error/20 p-2 rounded-lg mt-2">
+                    ⚠️ {deleteError}
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => {
+                      setProductToDelete(null);
+                      setDeleteError(null);
+                    }}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold text-on-surface hover:bg-white/5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={confirmDeleteProduct}
+                    className="bg-error text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-error/80 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Đang xử lý...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                        <span>Ẩn sản phẩm</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

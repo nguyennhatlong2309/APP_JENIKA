@@ -193,7 +193,7 @@ CREATE TABLE `don_vi_tinh` (
 
 LOCK TABLES `don_vi_tinh` WRITE;
 /*!40000 ALTER TABLE `don_vi_tinh` DISABLE KEYS */;
-INSERT INTO `don_vi_tinh` VALUES (1,'cái'),(2,'gam'),(3,'bộ'),(4,'kg');
+INSERT INTO `don_vi_tinh` VALUES (1,'cái'),(2,'kg'),(3,'bộ'),(4,'kg');
 /*!40000 ALTER TABLE `don_vi_tinh` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -492,6 +492,16 @@ LOCK TABLES `thu_chi` WRITE;
 /*!40000 ALTER TABLE `thu_chi` DISABLE KEYS */;
 /*!40000 ALTER TABLE `thu_chi` ENABLE KEYS */;
 UNLOCK TABLES;
+
+-- =================================================================
+-- Indexes tối ưu hiệu năng
+-- =================================================================
+ALTER TABLE `san_pham` ADD INDEX `idx_san_pham_bi_xoa_ton` (`bi_xoa`, `so_luong_ton`, `canh_bao_ton_kho`);
+ALTER TABLE `san_pham` ADD INDEX `idx_san_pham_ten` (`ten_san_pham`);
+ALTER TABLE `ban_hang` ADD INDEX `idx_ban_hang_thoi_gian_trang_thai` (`thoi_gian` DESC, `trang_thai`);
+ALTER TABLE `nhap_hang` ADD INDEX `idx_nhap_hang_thoi_gian_trang_thai` (`thoi_gian` DESC, `trang_thai`);
+ALTER TABLE `chi_tiet_ban_hang` ADD INDEX `idx_ctbh_is_gift` (`is_gift`);
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

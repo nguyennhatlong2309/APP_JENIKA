@@ -3,10 +3,17 @@ package com.cafe.jenika.service;
 import com.cafe.jenika.dto.SanPhamDTO;
 import com.cafe.jenika.model.SanPham;
 import com.cafe.jenika.repository.SanPhamRepository;
+import com.cafe.jenika.repository.SanPhamSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -125,5 +132,32 @@ public class SanPhamService {
             nhatKyService.log("RESTORE", "san_pham", "SP-" + p.getId(), 
                     "Khôi phục sản phẩm: " + p.getTenSanPham());
         });
+    }
+
+    public Page<SanPhamDTO> getProductsPaginated(
+            Boolean biXoa,
+            String search,
+            List<Integer> categoryIds,
+            List<Integer> groupIds,
+            List<String> statuses,
+            Pageable pageable) {
+        Specification<SanPham> spec = SanPhamSpecification.filterProducts(biXoa, search, categoryIds, groupIds, statuses);
+        return sanPhamRepository.findAll(spec, pageable).map(SanPhamDTO::fromEntity);
+    }
+
+    public Map<String, Object> getProductStats() {
+        Long totalItems = sanPhamRepository.sumTotalItems();
+        BigDecimal totalValue = sanPhamRepository.sumTotalValue();
+        Long lowStockCount = sanPhamRepository.countLowStock();
+        Long activeCount = sanPhamRepository.countActive();
+        Long deletedCount = sanPhamRepository.countDeleted();
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalItems", totalItems != null ? totalItems : 0L);
+        stats.put("totalValue", totalValue != null ? totalValue : BigDecimal.ZERO);
+        stats.put("lowStockCount", lowStockCount != null ? lowStockCount : 0L);
+        stats.put("activeCount", activeCount != null ? activeCount : 0L);
+        stats.put("deletedCount", deletedCount != null ? deletedCount : 0L);
+        return stats;
     }
 }

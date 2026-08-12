@@ -24,6 +24,10 @@ public class BanHangDTO {
     private LocalDate ngayLap;
     private String trangThai;
     private String ghiChu;
+    private String anhHoaDonUrl;
+    private BigDecimal tongCost;
+    private BigDecimal loiNhuan;
+    private BigDecimal tienQuaTang;
     private List<ChiTietBanHangDTO> chiTietBanHangs;
 
     public static BanHangDTO fromEntity(BanHang entity) {
@@ -40,6 +44,10 @@ public class BanHangDTO {
                 .ngayLap(entity.getNgayLap())
                 .trangThai(entity.getTrangThai())
                 .ghiChu(entity.getGhiChu())
+                .anhHoaDonUrl(entity.getAnhHoaDonUrl())
+                .tongCost(entity.getTongCost())
+                .loiNhuan(entity.getLoiNhuan())
+                .tienQuaTang(entity.getTienQuaTang())
                 .chiTietBanHangs(entity.getChiTietBanHangs() != null ?
                         entity.getChiTietBanHangs().stream()
                                 .map(ChiTietBanHangDTO::fromEntity)
@@ -60,6 +68,10 @@ public class BanHangDTO {
                 .ngayLap(this.ngayLap)
                 .trangThai(this.trangThai)
                 .ghiChu(this.ghiChu)
+                .anhHoaDonUrl(this.anhHoaDonUrl)
+                .tongCost(this.tongCost)
+                .loiNhuan(this.loiNhuan)
+                .tienQuaTang(this.tienQuaTang)
                 .build();
         
         if (this.chiTietBanHangs != null) {

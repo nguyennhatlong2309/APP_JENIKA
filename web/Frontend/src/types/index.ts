@@ -82,6 +82,7 @@ export interface PurchaseOrder {
   tienNo: number;
   trangThai: string; // Chờ nhận | Hoàn thành | Hủy
   ghiChu?: string;
+  anhHoaDonUrl?: string;
   chiTietNhapHangs?: ImportDetail[];
 }
 
@@ -92,6 +93,7 @@ export interface SalesOrderDetail {
   giaBan?: number;
   thanhTien?: number;
   isGift?: boolean;
+  giaVon?: number;
 }
 
 export interface SaleOrder {
@@ -106,6 +108,10 @@ export interface SaleOrder {
   ghiChu?: string;
   diaChiGiaoHang?: string | null;
   ngayLap?: string | null;
+  tongCost?: number;
+  loiNhuan?: number;
+  tienQuaTang?: number;
+  anhHoaDonUrl?: string;
   chiTietBanHangs?: SalesOrderDetail[];
 }
 
@@ -197,4 +203,18 @@ export interface Tab2Stats {
   qtySold: number;
   qtyGifted: number;
 }
+
+export interface StoreConfig {
+  id?: number;
+  shopName: string;
+  shopNamePnh: string;
+  shopAddr: string;
+  shopTel: string;
+  shopBank: string;
+  shopNotes: string;
+  shopPolicy: string;
+  shopWarranty: string;
+  shopWarrantyLimit: string;
+}
+
 
